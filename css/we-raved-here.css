@@ -1,0 +1,654 @@
+/*@import url("./soundcloud-structure.css");
+@import url("./soundcloud-colors.css");*/
+
+/*@font-face {
+  font-family: MaisonNeue;
+  src: url(../fonts/MaisonNeue-Mono.otf);
+}*/
+
+html, body, div, canvas, ul, li, p, svg { border: 0; padding: 0; margin: 0; }
+body { zoverflow: hidden; }
+
+html { height: 100%; zoverflow: hidden; }
+body { 
+  height: 100%;
+  /*background-image: url(../img/bg.checkerboard.light.gif);*/
+}
+
+#background {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0; left: 0;
+  /*background-color: #f00;*/
+  overflow: hidden;
+}
+
+
+
+*, *:before, *:after {
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+#map { height: 100%; width: 100%; }
+
+#map.leaflet-container {
+  background: transparent;
+  outline: 0;
+}
+
+#zmap.leaflet-container img.leaflet-tile {
+  opacity: 0.5;
+  visibility: hidden;  
+}
+
+#canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+#ui-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  list-style-type: none;
+}
+
+#ui-bottom li {
+
+  padding: 0 10px 5px 10px;
+
+  cursor: pointer;
+}
+
+#ui-timeline .date {
+  font-size: 16px;
+  font-family: MaisonNeue;
+  text-decoration: underline;
+  letter-spacing: 5px;
+  display: inline-block;
+  position: absolute;
+  /*text-shadow: 1px 1px 2px #fff, -1px -1px 2px #fff, 1px -1px 2px #fff, -1px 1px 2px #fff;*/
+}
+
+#ui .text {
+  font-size: 16px;
+  font-family: MaisonNeue;
+  text-decoration: underline;
+  letter-spacing: 5px;
+  font-weight: normal;  
+}
+
+#ui .title {
+  visibility: hidden;
+  position: absolute;
+  right: -70px;
+  top: 50%;
+  -webkit-transform: rotate(90deg);
+  transform: rotate(90deg);
+  -webkit-transform-origin: 50% 50%;
+  transform-origin: 50% 50%;
+  pointer-events: none;
+
+}
+
+.unselectable {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+#ui-zoom {
+  position: absolute;
+  /*top: 0;*/
+  /*left: 10px;*/
+  /*pointer-events: none;  */
+  /*border: 1px solid red;*/
+}
+
+#ui-zoom canvas, #ui-timeline canvas, #ui #text-title {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /*pointer-events: none;  */
+}
+
+#text-title {
+  pointer-events: none;
+}
+
+#ui-zoom .zoom-in {
+  border: 1px solid red;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: auto;  
+  cursor: pointer;
+}
+
+#ui-zoom .zoom-out {
+  border: 1px solid red;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: auto;  
+  cursor: pointer;
+}
+
+#ui-zoom .zoom-knob {
+  border: 1px solid red;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: auto;  
+  cursor: pointer;
+}
+
+#ui-timeline {
+  position: absolute;
+  /*top: 0;*/
+  /*left: 50%;*/
+  /*border: 1px solid red;*/
+}
+
+
+.popup-with-tail {
+  color: #fff;
+  display: none;
+  position: absolute;
+  width: 400px;
+  height: 320px;
+  min-height: 320px;
+}
+
+.popup-tail {
+  position: absolute;
+  bottom: 0px;
+  overflow-y: auto;
+  height: 50px  
+}
+
+.popup-content {
+  position: absolute;
+  bottom: 50px;
+  overflow-y: auto;
+  zzheight: 230px;
+  max-height: 280px;  
+}
+
+
+
+.popup-content p, .popup-content form {
+  width: 400px;
+  vertical-align: bottom;
+  background-color: rgba(32,32,32, 0.85);
+  font-size: 14px;
+  font-family: MaisonNeue;
+}
+
+.popup-content p {
+  padding: 10px;
+}
+
+
+.popup-content p a, .popup-content p a:active, .popup-content p a:visited {
+  color: #fff;
+}
+
+#popup-about {
+  right: 31px;
+  bottom: 30px;
+}
+
+#popup-add {
+  left: 45px;
+  bottom: 30px;
+}
+
+#popup-add label {
+  cursor: pointer;
+  padding: 10px;
+}
+
+#popup-add input {
+  cursor: pointer;
+}
+
+#popup-add input {
+  /*position: absolute;*/
+  /*right: 0;*/
+  margin: 5px 0px;
+  padding: 3px;
+
+  background-color: transparent;
+  color: rgba(255,255,255, 0.7);
+  font-size: 14px;
+  font-family: MaisonNeue;  
+
+  border: none;
+}
+
+#popup-add input:focus {
+  /*border: 2px solid rgba(255,255,255, 0.8);*/
+  color: #fff;
+  background-color: rgba(32,32,32, 1.0);
+}
+
+#popup-add button {
+  color: #000;
+  padding: 2px;
+  font-size: 16px;
+  margin: 10px;
+  font-family: MaisonNeue;    
+}
+
+
+#popup-share {
+/*  margin-left: auto;
+  margin-right: auto;*/
+  bottom: 30px;
+}
+
+/*.popup-tail {
+  width: 400px;
+  height: 50px;
+  background-image: url(../img/bg.checkerboard.gif);
+  background-size: 16px 16px;
+  clip-path: url(#popup1);
+  z-webkit-clip-path: polygon(0px 0px, 400px 0px, 380px 50px);
+  -webkit-clip-path: url(#popup1);
+
+}*/
+
+/*
+ soundcloud structure
+*/
+
+.soundcloud-popup {
+  width: 430px;
+  background-color: #000;
+  opacity: 0.9;
+  position: absolute;
+  padding: 20px 15px;
+}
+
+.sc-player{
+  /*width: 100%;*/
+  height: 90px;
+  /*position: relative;*/
+  /*margin: 20px 0;*/
+  width: 400px;
+  /*margin: 0 15px;*/
+}
+
+.sc-player ol, .sc-player li{
+  margin: 0;
+  padding: 0;
+  list-style-position: inside;
+}
+
+/* Artworks */
+
+.sc-player .sc-artwork-list{
+  display: none;
+}
+
+.sc-player .sc-artwork-list li{
+  list-style-type: none;
+  display: none;
+}
+
+.sc-player .sc-artwork-list li.active{
+  list-style-type: none;
+  display: block;
+}
+
+.sc-player .sc-artwork-list li img, .sc-player .sc-artwork-list li div{
+  list-style-type: none;
+  width: 100%;
+  height: 100%;
+}
+
+/* controls */
+
+.sc-player .sc-controls{
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  padding: 4px;
+  /*top: 8px;*/
+}
+
+.sc-player .sc-controls a{
+  display: block;
+  width: 40px;
+  height: 40px;
+}
+
+.sc-player .sc-controls a.sc-play, .sc-player .sc-controls a.sc-pause{
+  text-indent: -3000px;
+}
+
+.sc-player .sc-controls a.sc-pause{
+  display: none;
+}
+
+.sc-player.playing .sc-controls a.sc-play{
+  display: none;
+}
+
+.sc-player.playing .sc-controls a.sc-pause{
+  display: block;
+}
+
+/* scrubber */
+
+.sc-scrubber {
+  position: absolute;
+  /*left: -5000px;*/
+  bottom: 20px;
+  height: 30px;
+  /*width: 95.5%;*/
+  width: 400px;
+  opacity: 0.8;
+}
+
+.sc-player:hover .sc-scrubber, .sc-player.playing .sc-scrubber {
+  display: block;
+  /*left: 45px;*/
+}
+
+
+
+.sc-scrubber .sc-time-span{
+  height: 30px;
+  margin: 0px;
+  position: relative;
+}
+
+.sc-scrubber .sc-buffer, .sc-scrubber .sc-played{
+  height: 30px;
+  position: absolute;
+  top: 0;
+  width: 0;
+  -webkit-transition: width 0.1s linear;
+}
+
+.sc-scrubber .sc-time-indicators{
+  display: none;
+  position: absolute;
+  right: 0;
+  top: -20px;
+}
+
+/* tracks */
+
+/* Track listings*/
+
+.sc-player ol.sc-trackslist{
+  position: absolute;
+  float: left;
+  width: 340px;
+  /*height: 100%;*/
+  left: 60px;
+  overflow: auto;
+}
+
+.sc-player ol.sc-trackslist li{
+  /*float: left;*/
+  /*width: 95.5%;*/
+  cursor: pointer;
+  /*margin: 5px;*/
+  /*padding: 5px;*/
+  margin: 5px 0 0 0;
+  list-style: none;
+}
+
+/* Track info*/
+
+.sc-player .sc-info{
+  position: absolute;
+  top: 10px;
+  left: -5000px;
+  width : 200px;
+  padding: 5px;
+  height: 450px;
+  z-index: 500;
+  margin-left: -40px;
+}
+
+.sc-player .sc-info.active{
+  left: 25%;
+  top: 5%;
+}
+
+
+.sc-player .sc-info-toggle{
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: none;
+}
+
+.sc-player .sc-info-toggle.active{
+  left: -5000px;
+}
+
+.sc-player .sc-info-close{
+  position: absolute;
+  top: 10px;
+  right: 20px;
+}
+
+/* utilities */
+
+.sc-player .hidden {
+  display: none;
+}
+
+.sc-player-engine-container{
+  width: 1px;
+  height: 1px;
+  position: fixed;
+  top: 2px;
+  left: 2px;
+}
+
+
+
+
+/*
+ soundcloud colors
+*/
+
+.soundcloud-popup h2, .soundcloud-popup h3, .soundcloud-popup p {
+  font-family: MaisonNeue;
+  color: #fff;
+}
+
+.soundcloud-popup h3, .soundcloud-popup p {
+  color: #bbb;
+  text-align: left;
+  padding: 0 0 6px 0px;
+  font-size: 12px;
+}
+
+.soundcloud-popup h2 {
+  text-align: center;
+  font-size: 24px;
+  letter-spacing: 8px;
+}
+
+.sc-player {
+  background-color: #333;
+
+
+}
+
+/*
+.sc-player {
+  font: 12px Arial, sans-serif;
+  color: #333;
+  font-size: 1.6em;
+  line-height: 1.6em;
+  font-weight: bold;
+}
+*/
+
+.sc-player a {
+  font-family: MaisonNeue;
+  text-decoration: none;
+  color: #fff;
+  font-size: 16px;
+  text-align: left;
+}
+
+
+/* scrubber */
+
+.sc-scrubber {
+  background-color: #e5e5e5;
+  -moz-border-radius: 8px;
+  -webkit-border-radius: 8px;
+}
+
+.sc-scrubber .sc-time-span {
+  background-color: #fff;
+}
+
+.sc-scrubber .sc-time-span img {
+  height: 30px;
+  width: 100%;
+  background-color: #000;
+}
+
+
+.sc-scrubber .sc-buffer, .sc-scrubber .sc-played {
+  background-color: #333;
+  opacity: 0.4;
+}
+
+.sc-scrubber .sc-played {
+  background-color: #000;
+  opacity: 0.4;
+}
+
+/* controls */
+
+.sc-player .sc-controls a {
+  opacity: 0.5;
+  color: transparent;
+  /*background: url('soundcloud-img/play.png');*/
+  background: url('soundcloud-img/play-hover.png');
+
+}
+
+.sc-player .sc-controls a:hover {
+  background: url('soundcloud-img/play.png');
+
+  /*background: url('soundcloud-img/play-hover.png');*/
+}
+
+.sc-player .sc-controls a.sc-pause {
+  background: url('soundcloud-img/play.png');
+}
+
+.sc-player .sc-controls a.sc-pause:hover{
+  background: url('soundcloud-img/play-hover.png');
+}
+
+.sc-player.playing .sc-controls a.sc-pause{
+  background: url('soundcloud-img/pause-hover.png');
+
+}
+
+.sc-player.playing .sc-controls a.sc-pause:hover{
+  background: url('soundcloud-img/pause.png');
+
+}  
+
+.sc-scrubber .sc-time-indicators{
+  background: #fff;
+  color: #000;
+  -moz-border-radius: 4px;
+  -webkit-border-radius: 4px;
+  padding: 2px;
+  font-size: 0.4em;
+  font-weight: normal;
+  line-height: 1em;
+}
+
+/* Track listings*/
+
+.sc-player ol.sc-trackslist li.active, .sc-player ol.sc-trackslist li:hover {
+  /*background-color: #fff;*/
+  padding: 4px;
+  color: #000;
+}
+
+.sc-player ol.sc-trackslist li.active a {
+  /*color: #000;*/
+}
+
+.sc-track-duration {
+  text-align: right;
+  float: right;
+  padding: 0 5px;
+  margin-left: 5px;
+  display: none;
+}
+
+/* Track info*/
+
+.sc-player .sc-info{
+  background: #fff;
+  /*opacity: 0.9;*/
+}
+
+.sc-player .sc-info-toggle{
+  background: #fff;
+  color: #003399;
+  -moz-border-radius: 4px;
+  -webkit-border-radius: 4px;
+  -moz-box-shadow: 1px 1px 4px #ccc;
+  -webkit-box-shadow: 1px 1px 4px #ccc;
+  padding: 4px;
+}
+
+.sc-player .sc-info-toggle:hover{
+  background: #003399;
+  color: #eee;
+}
+
+.sc-player .sc-info-close{
+  background: #003399;
+  color: #fff;
+  -moz-border-radius: 4px;
+  -webkit-border-radius: 4px;
+  padding: 2px 4px;
+  font-weight: bold;
+}
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>we raved here compositing test</title>
+
+<script src="http://maps.google.com/maps/api/js?sensor=false"></script>
+<!-- <script src="js/gif.js"></script> -->
+<script src="js/leaflet-src.js"></script>
+<script src="js/d3.min.js"></script>
+<script src="js/stats.js"></script>
+<script src="js-timb/we-raved-here.js"></script>
+
+<style>
+@font-face { font-family: MaisonNeue; src: url(./fonts/MaisonNeue-Mono.otf); }
+</style>
+
+<link rel="stylesheet" href="css/leaflet.css">
+<link rel="stylesheet" href="css/we-raved-here.css">
+
+</head>
+<body>
+
+<div id=background></div>
+<canvas id=canvas></canvas>
+<div id="map" class=unselectable></div>
+<div id=ui>
+    <ul id=ui-bottom>
+      <li id=link-add class="text unselectable"><a>Add Rave</a></li>
+      <li id=link-share class="text unselectable"><a>Reminisce</a></li>
+      <li id=link-about class="text unselectable"><a>About</a></li>
+    </ul>
+    <canvas id=text-title></canvas>
+    <h1 class="title text unselectable">We Raved Here</h1>
+    <div id=ui-zoom>
+      <canvas class="zoom-slider unselectable"></canvas>
+    </div>
+    <div id=ui-timeline>
+      <canvas class="timeline-slider unselectable"></canvas>
+      <div class="date unselectable"></div>
+    </div>
+    <div id=popups>
+      <div class=popup-with-tail id=popup-add><div class=popup-content>
+          <p>
+          Please help us fill the UK with links from 
+          the best raves on soundcloud and mixcloud from the decade of dance
+          </p>
+          <form>
+
+            <label for=in-url>URL:</label><input id=in-url><br>
+            <label for=in-name>Name of rave:</label><input id=in-name><br>
+            <label for=in-location>Location:</label><input id=in-location><br>
+            <label for=in-date>Date:</label><input id=in-date><br>
+            <label for=in-email>Email:</label><input id=in-email><br>
+            <button>submit</button>
+          </form>
+      </div><canvas class=popup-tail></canvas></div>
+      <div class=popup-with-tail id=popup-share><div class=popup-content>
+        <p>
+          <a href="https://twitter.com/share" class="twitter-share-button" data-size="large">Tweet</a>
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+        </p>
+      </div><canvas class=popup-tail></canvas></div>
+      <div class=popup-with-tail id=popup-about><div class=popup-content>
+        <p>
+          This site is a homage to old school UK rave sets from 1988-1998...<br>
+          The golden decade of dance.<br><br>
+          It populates found DJ sets with time and location on the map.<br><br>
+          To all the DJs, promoters, and labels out there, this is a not for profit website. 
+          This is just for the love.<br><br>
+          For any more information please get in touch <a href="#">here</a>.
+        </p>
+      </div><canvas class=popup-tail></canvas></div>
+    </div>
+</div>
+
+</body>
+<!-- <script src="js-chris/mouse.js"></script> -->
+<script src="js-chris/04.js"></script>
+<!-- <script src="js-chris/randompins.js"></script> -->
+<script src="js/jquery-2.0.3.min.js"></script>
+<script src="js/soundcloud/soundcloud.player.api.js"></script>
+<script src="js/soundcloud/sc-player.js"></script>
+<script>
+  we_raved_here.init();
+</script>
+</html>
