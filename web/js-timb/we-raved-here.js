@@ -610,7 +610,7 @@ background.anim_render = function(){
 };
 
 background.as_gif = function(){
-  dom.el.style.backgroundImage = "url(img/bg.checkerboard.light.gif)";
+  dom.el.style.backgroundImage = "url(img/bg/checkers-light.gif)";
 }
 
 
