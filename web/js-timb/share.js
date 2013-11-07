@@ -28,7 +28,9 @@ share.init = function(){
     else share.open()
   });
 
-  share.resize()
+  window.addEventListener('resize', function(){ share.resize() });
+
+  share.resize();
   loop.add(share.anim);
 }
 
