@@ -35,12 +35,7 @@ we_raved_here.init = function(){
   background.init();
   //chris's effect:
   loop.add(window.loop_chris)
-  loop.start();
-
-  loop.stats.domElement.style.position = 'absolute';
-  loop.stats.domElement.style.left = '0px';
-  loop.stats.domElement.style.top = '0px';
-  document.body.appendChild( loop.stats.domElement );
+  loop.init();
   
   // have to wait for font to be ready before drawing into canvas with it
   var text_init = function(){

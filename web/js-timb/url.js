@@ -1,7 +1,7 @@
 var url = {};
 
 url.init = function(){
-  var u = url.parse(document.location);
+  var u = url.parsed = url.parse(document.location);
   if (u.host === 'ravemaps.local'){
     url.proxify = url.proxify_corsify;
     url.tile_server = 'http://tiles.ravemaps.local/'

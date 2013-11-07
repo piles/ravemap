@@ -187,18 +187,29 @@ add.close = function(){
 
 module.exports = add;
 },{"./anim_loop":3,"./dom":11,"./pattern":20,"./popup":21,"./text_metrics":24}],3:[function(require,module,exports){
-
 require('./anim_shim');
+var url = require('./url');
 
 var anim = {};
 
-anim.stats = new Stats();
+var fns = anim.fns = []
+  , anim_id = -1
+  , frame_num = 0
 
-
-var fns = anim.fns = [];
-var anim_id = -1;
 anim.frame_skip = 0;
-var frame_num = 0;
+
+
+anim.init = function(){
+  if ('stats' in url.parsed.queryKey){
+    var s = anim.stats = new Stats();
+    s.domElement.style.position = 'absolute';
+    s.domElement.style.left = '0px';
+    s.domElement.style.top = '0px';
+    document.body.appendChild( s.domElement );
+    loop = loop_with_stats;
+  }
+  anim.start();
+}
 
 anim.start = function(){
   if (anim_id === -1)
@@ -214,27 +225,45 @@ anim.add = function(fn){
   fns.push(fn);
 };
 
-var loop = function(){
-  anim_id = requestAnimationFrame(loop);
+var loop_without_stats = function(){
+  anim_id = requestAnimationFrame(loop_without_stats);
+
+  //if (anim.frame_skip > 0){
+  //  frame_num += 1;
+  //  if (frame_num < anim.frame_skip)
+  //    return
+  //  else
+  //    frame_num = 0;
+  //}
+
+  for (var i=0, fn; fn=fns[i]; i++)
+    fn();
+
+};
+
+var loop_with_stats = function(){
+  anim_id = requestAnimationFrame(loop_with_stats);
 
   anim.stats.begin();
 
-  if (anim.frame_skip > 0){
-    frame_num += 1;
-    if (frame_num < anim.frame_skip)
-      return
-    else
-      frame_num = 0;
-  }
+  //if (anim.frame_skip > 0){
+  //  frame_num += 1;
+  //  if (frame_num < anim.frame_skip)
+  //    return
+  //  else
+  //    frame_num = 0;
+  //}
 
   for (var i=0, fn; fn=fns[i]; i++)
     fn();
 
   anim.stats.end();
-}
+};
+
+var loop = loop_without_stats;
 
 module.exports = anim;
-},{"./anim_shim":5}],4:[function(require,module,exports){
+},{"./anim_shim":5,"./url":30}],4:[function(require,module,exports){
 var url = require('./url');
 var css = require('./css');
 var map = require('./map');
@@ -960,12 +989,7 @@ we_raved_here.init = function(){
   background.init();
   //chris's effect:
   loop.add(window.loop_chris)
-  loop.start();
-
-  loop.stats.domElement.style.position = 'absolute';
-  loop.stats.domElement.style.left = '0px';
-  loop.stats.domElement.style.top = '0px';
-  document.body.appendChild( loop.stats.domElement );
+  loop.init();
   
   // have to wait for font to be ready before drawing into canvas with it
   var text_init = function(){
@@ -2082,7 +2106,7 @@ module.exports = touches;
 var url = {};
 
 url.init = function(){
-  var u = url.parse(document.location);
+  var u = url.parsed = url.parse(document.location);
   if (u.host === 'ravemaps.local'){
     url.proxify = url.proxify_corsify;
     url.tile_server = 'http://tiles.ravemaps.local/'
