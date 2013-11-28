@@ -62,10 +62,10 @@ pin.init = function(){
       iconUrl: path_pin+'marker-icon-pink-2x.png',
       // iconRetinaUrl: path_pin+'marker-icon-pink-2x.png',
       shadowUrl: path_pin+'marker-shadow.png',
-      // iconSize: [50, 82],
-      // iconAnchor: [25, 82],
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
+      iconSize: [50, 82],
+      iconAnchor: [25, 82],
+      // iconSize: [25, 41],
+      // iconAnchor: [12, 41],
       popupAnchor: [1, -34],
       shadowSize: [41, 41]
   });
@@ -96,7 +96,8 @@ pin.init = function(){
 
   pin.geocode = L.marker([0,0], {
       icon: pin.icon_geocode,
-      draggable: true
+      draggable: true,
+      zIndexOffset: 1337
   });
 
   pin.geocode.on('dragend', function(e){
