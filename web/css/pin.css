@@ -1,0 +1,23 @@
+#map.zoomed-out .pin-anim-overlay, #map.zoomed-out .pin-anim-bg {
+  -webkit-transform: scale(0.5, 0.5);
+  -webkit-transform-origin: 15px 50px;
+}
+
+.pin-anim {
+  position: absolute;
+}
+
+.pin-anim-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+.pin-anim-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 0;
+}

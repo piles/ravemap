@@ -1,34 +1,48 @@
 ravemaps master todo
 
-X map: 
+X chris's anim
+X   use markers
+X   use animation
+
+X map ui: 
 X   render light earth tiles
+X   render dark earth tiles for dark bg
 X   render uk mask tiles
 X   composite animation
 X   start on a tight zoom
 X   only fetch tiles if exist (non existence hash)
+    clustering overlapped pins?
 
 music player:
 X popup
 X insert soundcloud player
-  insert mixcloud player
+X insert mixcloud player
+X style player with decent css
   player stays playing when browsing?
+X pan to include player bounds if player popup outside of view
+X move player popup out of leaflet: opacity issues, z-index issues
+X make soundcloud anim more efficient (dirty movement flag from map)
+  prefer to appear in a space where there aren't pins
 
 X timeline ui:
 X   buttons
 X   slider (with resize to fit)
 X   time label
-X   markers w/ opacity animation to match timeline
+X   markers w/ some kind of  animation to match timeline
+    pins matching time change icon?
+    pins not matching time get smaller or disappear?
 X   hold mouse down on button moves slider value over time
 
 X zoom ui:
 X   buttons
 X   slider
 
-ui:
+ui interaction:
 X   bug: slider only draggable if moused over exactly
     touch events - make sure ipad works
+    ipad too slow - do something
 
-  text nav ui:
+  text:
 X   use font
 X   sideways title
 X   bug: render rotated title text on canvas rather than html text to avoid crummy aliasing
@@ -40,25 +54,25 @@ X   popups: close others when opening
 X   add: form
     add set: post to api
     add set: drag map marker to location
-    add set: google geo api?
+X   add set: google geo api?
 X   share
 X   about
 
 
 extra:
+X   white ui when bg is dark
+X   move build scripts out of web dir
+    move all leaflet edits out of leaflet source, so that minified and current leaflet can be used
     url changes to show current set
 X   background animation
     map: other layers
           names
           roads, streams
     hide ui on small screens
-    disable animation on slow computers
     black text is sometimes hard to read over animation
 X   more efficient compositing ideas:
 X         composite in larger blocks
 X         only redo mask layer if moved/resized/zoomed    
   
-chris's anim
-    use markers
-X   use animation
+
   

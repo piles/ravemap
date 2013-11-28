@@ -1,4 +1,5 @@
 var domq = require('./dom').q;
+var url = require('./url');
 
 var metrics = require('./text_metrics');
 
@@ -7,6 +8,7 @@ var tau = Math.PI*2;
 var title = 'We Raved Here';
 var css_props = {font: '16px MaisonNeue', letterSpacing: '5px'};
 var window_edge_pad = 10;
+var fillStyle = '#000';
 
 var dom = {};
 
@@ -14,8 +16,12 @@ var text_title = {};
 
 text_title.init = function(){
 
+
   dom.canvas = domq('#text-title');
   dom.ctx = dom.canvas.getContext('2d');
+  fillStyle = (url.parsed.queryKey.bg === 'chris') ? '#fff' : '#000';
+
+  // console.log(url.parsed.queryKey)
 
   var text_wh = metrics.text_wh_dom(title, css_props);
   var xs = metrics.char_xs(title, css_props, parseInt(css_props.letterSpacing));
@@ -27,6 +33,8 @@ text_title.init = function(){
   var h = dom.canvas.height = text_wh.w + 2;
 
   // console.log({w: xs[xs.length-1], h: wh.h});
+
+  dom.ctx.fillStyle = fillStyle;
 
   dom.ctx.font = css_props.font;
 

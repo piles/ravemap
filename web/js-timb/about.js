@@ -2,6 +2,7 @@ var domq = require('./dom').q;
 var popup = require('./popup');
 var pattern = require('./pattern');
 var loop = require('./anim_loop');
+var url = require('./url');
 
 var about = {};
 
@@ -9,6 +10,7 @@ var open = false;
 // var popup_content
 
 var dom = {};
+var fillStyle = '#000';
 
 about.init = function(){
 
@@ -20,6 +22,8 @@ about.init = function(){
   el_tail.width = 400
   el_tail.height = 50
 
+  fillStyle = (url.parsed.queryKey.bg === 'chris') ? '#fff' : '#000';
+  link.style.color = fillStyle
   
 
   dom.tail_ctx = dom.el_tail.getContext('2d');
@@ -36,7 +40,7 @@ about.init = function(){
     else about.open()
   });
 
-  loop.add(about.anim)
+  loop.fns_render.push(about.anim)
 }
 
 about.anim = function(){

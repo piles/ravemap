@@ -1,3 +1,5 @@
+// measure 
+
 var metrics = {};
 
 // get size of some text via dom

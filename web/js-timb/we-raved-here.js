@@ -79,13 +79,17 @@ about.close = function(){
 }
 
 module.exports = about;
-},{"./anim_loop":3,"./dom":11,"./pattern":20,"./popup":21}],2:[function(require,module,exports){
+},{"./anim_loop":3,"./dom":13,"./pattern":26,"./popup":34}],2:[function(require,module,exports){
 var domq = require('./dom').q;
 var domqs = require('./dom').qs;
 var popup = require('./popup');
 var pattern = require('./pattern');
 var loop = require('./anim_loop');
 var text_metrics = require('./text_metrics');
+var popup = require('./popup');
+var geocode = require('./geocode');
+var map = require('./map');
+var pin = require('./pin');
 
 var add = {};
 
@@ -93,6 +97,53 @@ var open = false;
 // var popup_content
 
 var dom = {};
+
+var input_location_value = ''
+  , input_location_timeout = 500
+  , input_location_timer = -1
+
+var input_location_set_latlng = function(lat, lng){
+  dom.input_location_lat.value = lat;
+  dom.input_location_lng.value = lng;  
+
+  if (!(map.leaflet.getBounds().contains([lat, lng])))
+    map.leaflet.panTo([lat, lng], {animate: true});
+
+  pin.geocode_place(lat, lng)
+
+}
+
+var input_location_changed = function(){
+  var input_location_value_new = dom.input_location.value.trim();
+
+  if (input_location_value_new === ''){
+    clearTimeout(input_location_timer);
+  } else if (input_location_value_new !== input_location_value) {
+    clearTimeout(input_location_timer);
+    input_location_timer = setTimeout(input_location_geocode, input_location_timeout)
+  }
+
+  input_location_value = input_location_value_new
+
+};
+
+var input_location_geocode = function(){
+  geocode.from_address(dom.input_location.value, input_location_geocode_results);
+}
+
+var input_location_geocode_results = function(results){
+  var loc = results[0].geometry.location
+
+  input_location_set_latlng(loc.lat(), loc.lng());
+
+  // console.log(results)
+};
+
+var input_location_reverse_geocode_results = function(results){
+  var loc = results[0].geometry.location
+  input_location_value = dom.input_location.value = results[0].formatted_address;
+  input_location_set_latlng(loc.lat(), loc.lng());
+};
 
 add.init = function(){
 
@@ -114,24 +165,35 @@ add.init = function(){
   // size inputs to popup
   var labels = domqs('#popup-add label');
   var inputs = domqs('#popup-add input');
+  dom.input_location = domq('#in-location');
+  dom.input_location_lat = domq('#in-location-lat');
+  dom.input_location_lng = domq('#in-location-lng');
+
   var css_props = {
     fontFamily: 'MaisonNeue',
     fontSize: '14px'
   };
 
+  // resize inputs to fit popup width
   for (var i=0, l=labels.length; i<l; i++){
     var label = labels[i];
     var input = inputs[i];
     var text_size = text_metrics.text_wh_dom(label.innerHTML, css_props)
-    var width = 400 - text_size.w - 30; //padding
+    var width = popup.width - text_size.w - 30; //padding
 
     input.style.width = width + 'px';
   }
+
+  // set up geocoding, use throttling
+  dom.input_location.addEventListener('input', input_location_changed);
 
   link.addEventListener('click', function(){
     if (open) add.close()
     else add.open()
   });
+
+  // get rid of this hack
+  pin.geocode_fn = input_location_reverse_geocode_results;
 
   loop.add(add.anim)
 }
@@ -177,16 +239,20 @@ add.open = function(){
 
   domq('#popup-add').style.display = 'block'
   open = true
+
+  if (dom.input_location.value) pin.geocode_place(parseFloat(dom.input_location_lat), parseFloat(dom.input_location_lng))
 }
 
 add.close = function(){
   domq('#popup-add').style.display = 'none'
 
+  pin.geocode_remove();
+
   open = false
 }
 
 module.exports = add;
-},{"./anim_loop":3,"./dom":11,"./pattern":20,"./popup":21,"./text_metrics":24}],3:[function(require,module,exports){
+},{"./anim_loop":3,"./dom":13,"./geocode":18,"./map":22,"./pattern":26,"./pin":27,"./popup":34,"./text_metrics":37}],3:[function(require,module,exports){
 require('./anim_shim');
 var url = require('./url');
 
@@ -263,12 +329,14 @@ var loop_with_stats = function(){
 var loop = loop_without_stats;
 
 module.exports = anim;
-},{"./anim_shim":5,"./url":30}],4:[function(require,module,exports){
+},{"./anim_shim":5,"./url":44}],4:[function(require,module,exports){
 var url = require('./url');
 var css = require('./css');
 var map = require('./map');
+var lerp = require('./math').lerp;
 var benchmark = require('./benchmark')();
-var loop = require('./anim_loop');
+var loop = require('./anim_loop')
+var domqs = require('./dom').qs;
 
 var anim = {};
 var dom = {};
@@ -333,6 +401,8 @@ anim.init = function(){
 
 
 
+
+
 anim.loop = function(){
 
   //var ui_layers = document.querySelectorAll('.leaflet-layer div');
@@ -346,7 +416,96 @@ anim.loop = function(){
 //  }
 //  if (!visible_layer) return;
 
-  var visible_layer = document.querySelectorAll('.leaflet-layer')[0];
+  // OLD WAY: without zoom
+//  var visible_layer = document.querySelectorAll('.leaflet-layer')[0];
+
+  // NEW WAY: zoom
+  
+  // find opaque leaflet-layer
+//  var layers_leaflet = domqs('.leaflet-layer');
+//  for (var i=0, layer; layer=layers_leaflet[i]; i++)
+//    if (layer.style.opacity === "0") console.log("yeah")
+
+// Bezier.cubicBezier(0,0,0.25,1,,250)
+
+  var css_scale = 1
+  var css_scale_rev = 1
+
+  var offset_anim_x = 0;
+  var offset_anim_y = 0;
+
+  var map_is_animating_zoom = map.leaflet._pathZooming || map.leaflet._animatingZoom //map.leaflet._pathZooming;
+
+  if (map_is_animating_zoom) { //console.log("zoom")
+
+    //this._zoom_anim_start = Date.now();
+    //this._zoom_anim_scale = scale;
+    //Bezier.cubicBezier(0,0,0.25,1,0.5,250)
+
+    // replicate css easing calculation (see ".leaflet-zoom-anim .leaflet-zoom-animated" in css)
+    // so that we can determine exact size and position of tiles being zoomed by css
+    // so the canvas animation mask animates while zooming to match the rest of the map
+    // this is a pain in the ass
+    var css_transition_ms = 250
+    var elapsed_ms = Date.now() - map.leaflet._zoom_anim_start
+    var x_point_in_bezier = elapsed_ms / css_transition_ms
+    if (x_point_in_bezier > 1) x_point_in_bezier = 1
+    var bezier_value = Bezier.cubicBezier(0,0,0.25,1, x_point_in_bezier, css_transition_ms)
+    var css_scale = lerp(1, map.leaflet._zoom_anim_scale, bezier_value)
+
+    // console.log(bezier_value, css_scale, offset_anim_x, offset_anim_y)
+  
+  var layers_mask_container = map.layer_uk_mask._container;
+    for (var i=0, layer_mask; layer_mask=layers_mask_container.children[i]; i++){
+      if (layer_mask.style.visibility === 'hidden') continue;
+      // var first_tile = layer_mask.children[0]
+      // if (first_tile && first_tile.src.match("/"+zoom_level+"/[0-9]+/[0-9]+\.png")){
+      //   var visible_layer = layer_mask; break;
+      // }
+
+    //  var tile_transform = css.get_transform(layer_mask);
+    //  if (tile_transform) console.log(tile_transform)
+
+      //if (layer_mask.style.visibility === 'hidden') continue;
+
+      var visible_layer = layer_mask;
+      var offset_coords_2 = css.get_transform_translate_coords(visible_layer)
+      var offset_anim_x = lerp(0, offset_coords_2[0], bezier_value)
+      var offset_anim_y = lerp(0, offset_coords_2[1], bezier_value) 
+    }
+
+
+
+    // console.log(visible_layer)
+
+  } else {
+    var zoom_level = map.leaflet.getZoom();
+    // the tile container WITHOUT a transform is the visible one that is the current map tileset
+    var layers_mask_container = map.layer_uk_mask._container;
+    for (var i=0, layer_mask; layer_mask=layers_mask_container.children[i]; i++){
+      if (css.get_transform(layer_mask) || layer_mask.children.length === 0) { /*console.log(css.get_transform(layer_mask));*/ continue; }
+      else { var visible_layer = layer_mask; break; }
+      // if (layer_mask.children.length && layer_mask.children[0].src.match("/"+zoom_level+"/[0-9]+/[0-9]+\.png")){
+      //   var visible_layer = layer_mask; break;
+      // }
+    } 
+  }
+
+  // if (typeof visible_layer === 'undefinied') return;
+
+  // look at first tile of each container
+  
+//  var visible_layer = map.layer_uk_mask._tileContainer
+//  console.log(map.layer_uk_mask._container.children.length)
+
+
+
+
+//  var tile_layers = domqs('.leaflet-layer .leaflet-tile-container');
+//  console.log(tile_layers)
+//  for (var i=0, l=tile_layers.length; i<l; i++) { var tile_layer = tile_layers[i]
+//    console.log(tile_layer.style.opacity, css.get_transform(tile_layer))
+//  }
 
   //anim.ctx.clearRect(0,0, anim.canvas.width, anim.canvas.height)
 
@@ -368,8 +527,7 @@ anim.loop = function(){
                       ml._mapPane._leaflet_pos.x + ' ' +
                       ml._mapPane._leaflet_pos.y
 
-  if (map_state !== map_state_new){
-
+  if (map_state !== map_state_new || map_is_animating_zoom){
     dom.ctx_mask.clearRect(0,0, dom.canvas_mask.width,dom.canvas_mask.height)
 
     // find visible tiles in layer
@@ -379,13 +537,15 @@ anim.loop = function(){
       benchmark.start('get-dom');
       // calculating tile coords from images in the dom
       if (tile.style.left){ // node using top/left css
-        var tile_l = parseInt(tile.style.left) + map_pane_xy[0];
-        var tile_t = parseInt(tile.style.top) + map_pane_xy[1];
+        var tile_l_o = parseInt(tile.style.left);
+        var tile_t_o = parseInt(tile.style.top);
       } else { // node using transform css
         var tile_xy = css.get_transform_translate_coords(tile)
-        var tile_l = tile_xy[0] + map_pane_xy[0];
-        var tile_t = tile_xy[1] + map_pane_xy[1];
+        var tile_l_o = tile_xy[0];
+        var tile_t_o = tile_xy[1];
       }
+      var tile_l = tile_l_o + map_pane_xy[0];
+      var tile_t = tile_t_o + map_pane_xy[1];
       benchmark.stop('get-dom');
 
 
@@ -446,7 +606,25 @@ anim.loop = function(){
 
   // new way
       // draw map tile into fullscreen mask
-      dom.ctx_mask.drawImage(tile, x_tile,y_tile,w_tmp,h_tmp,    tile_l+x_tile,tile_t+y_tile,w_tmp,h_tmp);
+// todo: use this if not zooming
+
+  
+
+//      dom.ctx_mask.drawImage(tile, x_tile,y_tile,w_tmp,h_tmp,
+//                                  tile_l+x_tile, tile_t+y_tile, w_tmp, h_tmp);
+
+      if (map_is_animating_zoom){
+// this nasty equation takes into consideration the css eased translate3d/scale of the tiles
+        dom.ctx_mask.drawImage(tile, x_tile,y_tile,w_tmp,h_tmp,
+                                  tile_l_o*css_scale+x_tile*css_scale+offset_anim_x+ map_pane_xy[0],
+                                  tile_t_o*css_scale+y_tile*css_scale+offset_anim_y+ map_pane_xy[1],
+                                  w_tmp*css_scale,
+                                  h_tmp*css_scale);
+
+      } else
+        dom.ctx_mask.drawImage(tile, x_tile,y_tile,w_tmp,h_tmp,
+                                  tile_l+x_tile, tile_t+y_tile, w_tmp, h_tmp);        
+
 
   /* old way
       // mask it with map tile
@@ -478,7 +656,7 @@ anim.loop = function(){
 };
 
 module.exports = anim;
-},{"./anim_loop":3,"./benchmark":7,"./css":8,"./map":18,"./url":30}],5:[function(require,module,exports){
+},{"./anim_loop":3,"./benchmark":9,"./css":10,"./dom":13,"./map":22,"./math":24,"./url":44}],5:[function(require,module,exports){
 var vendors = ['ms', 'moz', 'webkit', 'o'];
 for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
     window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
@@ -486,6 +664,183 @@ for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
                                || window[vendors[x]+'CancelRequestAnimationFrame'];
 };
 },{}],6:[function(require,module,exports){
+var engines = {};
+
+// engines.html5 = require('./audio_html5')
+engines.flash = require('./audio_flash')
+
+// var audio_html5_mp3_test = require('./audio_html5_mp3_test');
+
+var audio = {};
+var ts = audio.tracks = {};
+
+audio.init = function(){
+
+  for (var key in engines){ var e = engines[key];
+    if (e.test()){
+      audio.engine = e;
+      e.init({attach_fns_to: audio})
+    }
+  }
+
+};
+
+
+
+
+/*
+
+ var html5Driver = function() {
+      var player = new Audio(),
+          onTimeUpdate = function(event){
+            var obj = event.target,
+                buffer = ((obj.buffered.length && obj.buffered.end(0)) / obj.duration) * 100;
+            // ipad has no progress events implemented yet
+            callbacks.onBuffer(buffer);
+            // anounce if it's finished for the clients without 'ended' events implementation
+            if (obj.currentTime === obj.duration) { callbacks.onEnd(); }
+          },
+          onProgress = function(event) {
+            var obj = event.target,
+                buffer = ((obj.buffered.length && obj.buffered.end(0)) / obj.duration) * 100;
+            callbacks.onBuffer(buffer);
+          };
+
+      $('<div class="sc-player-engine-container"></div>').appendTo(document.body).append(player);
+
+      // prepare the listeners
+      player.addEventListener('play', callbacks.onPlay, false);
+      player.addEventListener('pause', callbacks.onPause, false);
+      // handled in the onTimeUpdate for now untill all the browsers support 'ended' event
+      // player.addEventListener('ended', callbacks.onEnd, false);
+      player.addEventListener('timeupdate', onTimeUpdate, false);
+      player.addEventListener('progress', onProgress, false);
+
+
+      return {
+        load: function(track, apiKey) {
+          player.pause();
+          player.src = track.stream_url + (/\?/.test(track.stream_url) ? '&' : '?') + 'consumer_key=' + apiKey;
+          player.load();
+          player.play();
+        },
+        play: function() {
+          player.play();
+        },
+        pause: function() {
+          player.pause();
+        },
+        stop: function(){
+          if (player.currentTime) {
+            player.currentTime = 0;
+            player.pause();
+          }
+        },
+        seek: function(relative){
+          player.currentTime = player.duration * relative;
+          player.play();
+        },
+        getDuration: function() {
+          return player.duration * 1000;
+        },
+        getPosition: function() {
+          return player.currentTime * 1000;
+        },
+        setVolume: function(val) {
+          player.volume = val / 100;
+        }
+      };
+*/
+
+module.exports = audio;
+},{"./audio_flash":7}],7:[function(require,module,exports){
+var text2el = require('./dom').text2el;
+var p, audio;
+// a = SC.stream("https://api.soundcloud.com/tracks/89408819?consumer_key=htuiRd1JP11Ww0X72T1C3g")
+// a.play()
+
+var audio_flash = {};
+
+var secureDocument = false;
+
+var play = function(){
+  p.play()
+};
+var pause = function(){
+  p.pause()
+};
+var stop = function(){
+  p.stop()
+  p.unload()
+};
+var load_and_play = function(url){
+  console.log(url)
+  SC.stream(url, function(sound_manager_obj){ 
+    console.log("foo")
+    audio.player = p = sound_manager_obj
+    p.play();
+  })
+};
+var load = function(url){
+  console.log(url)
+  SC.stream(url, function(sound_manager_obj){ audio.player = p = sound_manager_obj })
+};
+var seek = function(){
+  // p.setPosition()
+};
+
+
+
+var interface = {
+  play: play,
+  pause: pause,
+  stop: stop,
+  load: load,
+  load_and_play: load_and_play,
+  seek: seek
+}
+
+
+audio_flash.test = function(){
+  return true;
+}
+
+audio_flash.init = function(opts){
+  opts = opts || {};
+  audio = opts.attach_fns_to || {}
+
+
+  for (var name in interface){
+    audio[name] = interface[name];
+  }
+
+  // var id = 'soundcloud-flash-player'
+  // var domain = 'soundcloud.com'
+  // var url = ''
+  // var url_swf = (secureDocument ? 'https' : 'http') + '://player.' + domain +'/player.swf?url=' + url +'&amp;enable_api=true&amp;player_type=engine&amp;object_id=' + id;
+
+  // if (false /*$.browser && $.browser.msie*/) { // timb edit
+  //   var html = '<object zheight="100%" zwidth="100%" id="' + id + '" classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" data="' + swf + '">'+
+  //     '<param name="movie" value="' + url_swf + '" />'+
+  //     '<param name="allowscriptaccess" value="always" />'+
+  //     '</object>';
+  // } else {
+  //   var html = '<object zheight="100%" zwidth="100%" id="' + id + '">'+
+  //     '<embed allowscriptaccess="always" height="100%" width="100%" src="' + url_swf + '" type="application/x-shockwave-flash" name="' + id + '" />'+
+  //     '</object>';
+  // }
+
+  // p = audio.player = text2el(html)
+
+  // document.body.appendChild(p)
+
+  //p = audio.player = 
+
+  return audio;
+}
+
+module.exports = audio_flash;
+},{"./dom":13}],8:[function(require,module,exports){
 var domq = require('./dom').q;
 var loop = require('./anim_loop');
 var url = require('./url');
@@ -617,7 +972,7 @@ background.as_gif = function(){
 
 
 module.exports = background;
-},{"./anim_loop":3,"./dom":11,"./url":30}],7:[function(require,module,exports){
+},{"./anim_loop":3,"./dom":13,"./url":44}],9:[function(require,module,exports){
 // var b = Benchmark();
 // b.start("something") // start a timer named "something"
 // b.stop("something") // stop it
@@ -644,7 +999,7 @@ Benchmark.proto.stop = function(name){
 //module.exports = Benchmark;
 
 if (typeof module !== "undefined") module.exports = Benchmark;
-},{}],8:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 var css = {};
 
 // browser vendor css prefix junk
@@ -661,12 +1016,12 @@ css.get_transform = function(layer){
   if (ls.MozTransform) return ls.MozTransform;
 };
 
-css.get_transform_translate_coords_regex = /translate3?d?\(([0-9\-]*)p?x?, ([0-9\-]*)p?x?/;
+css.get_transform_translate_coords_regex = /translate3?d?\(([0-9\-\.]*)p?x?, ([0-9\-\.]*)p?x?/;
 css.get_transform_translate_coords = function(layer){
   var transform = css.get_transform(layer);
   var matches = transform.match(css.get_transform_translate_coords_regex)
   if (matches.length !== 3) return [0,0];
-  return [parseInt(matches[1]), parseInt(matches[2])]
+  return [parseFloat(matches[1]), parseFloat(matches[2])]
 };
 
 css.set = function(el, css_props){
@@ -674,6 +1029,8 @@ css.set = function(el, css_props){
   for (var key in css_props)
     s[key] = css_props[key];
 }
+
+// todo: use el.classList instead...
 
 css.has_class = function (el, class_name) {
     return new RegExp(' ' + class_name + ' ').test(' ' + el.className + ' ');
@@ -686,7 +1043,7 @@ css.add_class = function (el, class_name) {
     }
 };
 
-css.rm_class = function (class_name) {
+css.rm_class = function (el, class_name) {
     var class_name_normalized = ' ' + el.className.replace(/[\t\r\n]/g, ' ') + ' '
     if (css.has_class(el, class_name)) {
         while (class_name_normalized.indexOf( ' ' + class_name + ' ') >= 0) {
@@ -697,7 +1054,7 @@ css.rm_class = function (class_name) {
 };
 
 module.exports = css;
-},{}],9:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 var m = require('./mouse');
 var geom = require('./geom');
 
@@ -706,8 +1063,14 @@ var cursor = {};
 cursor.state = 'default';
 
 cursor.set = function(c){
-  cursor.state = c;
-  document.body.style.cursor = c;
+  var css_class = 'cursor-' + c
+  // var css_class_old = 'cursor-' + cursor.state
+  document.body.classList.remove(cursor.state)
+  document.body.classList.add(css_class)
+
+  // console.log(c)
+  cursor.state = css_class;
+  // document.body.style.cursor = c;
 };
 
 cursor.init = function(){
@@ -720,7 +1083,7 @@ cursor.bounds = {};
 cursor.check_cursor_bounds = function(){
   var x =m.x, y =m.y;
 
-  for (key in cursor.bounds){ var cb = cursor.bounds[key];
+  for (var key in cursor.bounds){ var cb = cursor.bounds[key];
     if (geom.bounds_hit_test(cb, x, y)) {
       if (m.down && 'mousedown' in cb){
         cursor.set(cb.mousedown)
@@ -738,7 +1101,7 @@ cursor.check_cursor_bounds = function(){
 };
 
 module.exports = cursor;
-},{"./geom":16,"./mouse":19}],10:[function(require,module,exports){
+},{"./geom":19,"./mouse":25}],12:[function(require,module,exports){
 var data = [
   {year: '1991',
    data: {"events":{"1991":[{"id":"14","eventname":"","url":"https:\/\/soundcloud.com\/dannychicago\/rage-1991","venue":"Rage","latitude":"26.5681406","longitude":"53.934423","eventdate":"1991-01-01","location":"Heaven","eventdate_known":"0"}]},"meta":{"years":["1991","1992","1993","1994","1995","1996"]}}
@@ -758,10 +1121,13 @@ var data = [
   {year: '1996',
    data: {"events":{"1996":[{"id":"4","eventname":"","url":"https:\/\/soundcloud.com\/slipmatt-1\/slipmatt-live-moondance","venue":"Moondance","latitude":"51.542141","longitude":"-0.1277349","eventdate":"1996-01-01","location":"Bagleys Kings Cross London","eventdate_known":"0"},{"id":"15","eventname":"","url":"https:\/\/soundcloud.com\/metalheadz\/kemistry-storm-goldie","venue":"Metalheadz","latitude":"50.82253","longitude":"-0.137163","eventdate":"1996-01-01","location":"Brighton","eventdate_known":"0"}]},"meta":{"years":["1991","1992","1993","1994","1995","1996"]}}
   }
+  ,
+  {year: '1997',
+  data: {events: {"1997": [{"id":"test","eventname":"","url":"http://www.mixcloud.com/Slipmatt/slipmatt-world-of-rave-28/","venue":"blah","latitude":"43.653226","longitude":"-79.38318429999998","eventdate":"1997-01-01","location":"bluh"}]}}}
 ];
 
 module.exports = data;
-},{}],11:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 var dom = {};
 
 // turn html text into live elements
@@ -781,7 +1147,7 @@ dom.qs = function(q){
 };
 
 module.exports = dom;
-},{}],12:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 var draw = {};
 
 draw.line_h = function(ctx, x,y, w,h, pad){
@@ -831,13 +1197,19 @@ draw.edge.r = function(ctx, x,y, w,h, pad){
 
 
 module.exports = draw;
-},{}],13:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 module.exports = function(destination, source) {
   for (var property in source)
     destination[property] = source[property];
   return destination;
 };
-},{}],14:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
+var fn = {};
+
+fn.empty = function(){};
+
+module.exports = fn;
+},{}],17:[function(require,module,exports){
 var extend = require('./extend');
 var css = require('./css');
 
@@ -879,18 +1251,14 @@ var font_load = function(config_in){
 
       if(config.timeout < 0) {
           config.fail_fn();
-        // $this.removeClass(config.onLoad);
-        // $this.addClass(config.onFail);
       }
       else {
-        // $this.addClass(config.onLoad);              
         setTimeout(check_loop, config.delay);
         config.timeout = config.timeout - config.delay;
       }
 
     }
     else {
-      // $this.removeClass(config.onLoad);
       config.load_fn();
     }
   };
@@ -900,30 +1268,41 @@ var font_load = function(config_in){
 }
 
 module.exports = font_load;
-},{"./css":8,"./extend":13}],15:[function(require,module,exports){
+},{"./css":10,"./extend":15}],18:[function(require,module,exports){
 var geocode = {};
 
 var gmap_geo = new google.maps.Geocoder();
 
-geocode.from_address = function(txt) {
+geocode.from_address = function(txt, fn) {
   var opts = {
     region: 'uk',
     address: txt
   };
   gmap_geo.geocode( opts, function(results, status) {
-    if (status == google.maps.GeocoderStatus.OK) {
-      console.log(results)
-    } else {
-      console.log("Geocode was not successful for the following reason: " + status);
-    }
+    if (status == google.maps.GeocoderStatus.OK) 
+      fn(results);
+    // else
+    //   console.log("Geocode was not successful for the following reason: " + status);
   });
+};
+
+geocode.from_latlng = function(lat, lng, fn){
+  var latlng = new google.maps.LatLng(lat, lng);
+  var opts = {
+    region: 'uk',
+    latLng: latlng
+  };
+  gmap_geo.geocode( opts, function(results, status) {
+    if (status == google.maps.GeocoderStatus.OK) 
+      fn(results);
+    // else
+    //   console.log("Geocode was not successful for the following reason: " + status);
+  });  
 }
 
 module.exports = geocode;
-},{}],16:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 var geom = {};
-
-geom.init
 
 geom.bounds_hit_test = function(b, x, y){
   if (typeof b === 'undefined') return false;
@@ -936,43 +1315,49 @@ geom.bounds_hit_test = function(b, x, y){
 };
 
 
-local_xy_to_canvas_xy = function(model, x, y){
-  
-}
+// local_xy_to_canvas_xy = function(model, x, y){
+  // 
+// }
 
-local_xy_to_window_xy = function(model, x, y){
-  x = model.l + x;
-  y = model.t + y;
-  return {x:x, y:y};
-}
+// local_xy_to_window_xy = function(model, x, y){
+  // x = model.l + x;
+  // y = model.t + y;
+  // return {x:x, y:y};
+// }
 
-window_xy_to_local_xy = function(model, x, y){
-  
-}
+// window_xy_to_local_xy = function(model, x, y){
+  // 
+// }
 
 module.exports = geom;
-},{}],17:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 var mouse = require('./mouse');
 var touches = require('./touches');
 var cursor = require('./cursor');
+
+var url = require('./url');
+var loop = require('./anim_loop');
+
 var tiles = require('./tiles');
 var map = require('./map');
+var pin = require('./pin');
 var anim_map = require('./anim_map');
-var loop = require('./anim_loop');
 var zoom = require('./zoom');
 var timeline = require('./timeline');
 var text_metrics = require('./text_metrics');
 var title = require('./title');
 var background = require('./background');
-var url = require('./url');
+var player = require('./player');
+var audio = require('./audio')
 
 var geocode = require('./geocode');
 
 var font_load = require('./font_load');
-
 var add = require('./add');
 var share = require('./share');
 var about = require('./about');
+
+var soundcloud = require('./player_soundcloud');
 
 var we_raved_here = {};
 
@@ -982,10 +1367,11 @@ we_raved_here.init = function(){
   cursor.init();
   touches.init();
   map.init();
+  pin.init();
   anim_map.init();
   zoom.init();
   timeline.init();
-
+  player.init();
   background.init();
   //chris's effect:
   loop.add(window.loop_chris)
@@ -1021,32 +1407,77 @@ window.anim_map = anim_map;
 window.loop = loop;
 window.url = url;
 window.geocode = geocode;
+window.player_soundcloud = soundcloud;
 // window.text_title = title;
+window.audio = audio;
 
 
-},{"./about":1,"./add":2,"./anim_loop":3,"./anim_map":4,"./background":6,"./cursor":9,"./font_load":14,"./geocode":15,"./map":18,"./mouse":19,"./share":22,"./text_metrics":24,"./tiles":25,"./timeline":26,"./title":28,"./touches":29,"./url":30,"./zoom":31}],18:[function(require,module,exports){
+},{"./about":1,"./add":2,"./anim_loop":3,"./anim_map":4,"./audio":6,"./background":8,"./cursor":11,"./font_load":17,"./geocode":18,"./map":22,"./mouse":25,"./pin":27,"./player":28,"./player_soundcloud":31,"./share":35,"./text_metrics":37,"./tiles":38,"./timeline":39,"./title":41,"./touches":42,"./url":44,"./zoom":46}],21:[function(require,module,exports){
+var domq = require('./dom').q;
+var uid = require('./uid');
+
+var jsonp = {};
+
+jsonp.fns = {}
+
+jsonp.get = function(url, events){
+
+  if (!events.load) return;
+
+  var script = document.createElement('script');
+
+  var unique_name = "_" + uid();
+
+  jsonp.fns[unique_name] = events.load;
+
+  jsonp.fns[unique_name + "_wrap"] = function(){
+    // console.log("foo")
+    jsonp.fns[unique_name].apply(this, arguments);
+
+    // collect garbage
+    delete jsonp.fns[unique_name]
+    delete jsonp.fns[unique_name + "_wrap"]
+    domq('head').removeChild(script)
+  }
+
+  script.src = url.replace('{{callback}}', "jsonp.fns." + unique_name + "_wrap")
+
+  domq('head').appendChild(script);
+
+  // console.log(script)
+  // console.dir(script)
+
+};
+
+// need global export 
+window.jsonp = jsonp
+module.exports = jsonp;
+},{"./dom":13,"./uid":43}],22:[function(require,module,exports){
+require('./map_leaflet_edit');
+var domq = require('./dom').q;
 var url = require('./url');
-var data = require('./data');
-var text2el = require('./dom').text2el;
-var soundcloud = require('./soundcloud');
+var css = require('./css');
 
 var map = {};
 map.tile_size = 256;
-map.markers = [];
+map.pins = [];
+
+var dom = {};
 
 map.init = function(){
 
-  map.leaflet = L.map('map', {
+  map.leaflet = new L.MapWithAnimPane('map', {
       minZoom: 3,
       maxZoom: 7,
       zoomControl: false,
       attributionControl: false,
       fadeAnimation: false,
-      zoomAnimation: false,
+      zoomAnimation: true,
       inertia: false
   });
 
   map.ui_map_pane = document.querySelector('.leaflet-map-pane');
+  dom.el = domq('#map');
 
   // var southWest = new L.LatLng(49.95121990866206, -10.634765625),
   //     northEast = new L.LatLng(60.6301017662667, 2.4609375),
@@ -1057,130 +1488,300 @@ map.init = function(){
   map.leaflet.fitBounds(bounds);
 
   // L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png').addTo(map);
- map.layer_uk_mask = L.tileLayer(url.tile_server + 'uk_mask/{z}/{x}/{y}.png', {tms: true, opacity: 0.0}).addTo(map.leaflet);
- map.layer_world = L.tileLayer(url.tile_server + 'world/{z}/{x}/{y}.png', {tms: true}).addTo(map.leaflet);
-  marker_init();
+  map.layer_uk_mask = L.tileLayer(url.tile_server + 'uk_mask/{z}/{x}/{y}.png', {tms: true, opacity: 0.0}).addTo(map.leaflet);
+  map.layer_world = L.tileLayer(url.tile_server + 'world/{z}/{x}/{y}.png', {tms: true}).addTo(map.leaflet);
 
+  map.leaflet.on('zoomend', function(e){
+    var zoom = map.leaflet.getZoom();
+    if (zoom < 5) {
+      css.rm_class(dom.el, 'zoomed-in')
+      css.add_class(dom.el, 'zoomed-out')
+    } else {
+      css.rm_class(dom.el, 'zoomed-out')
+      css.add_class(dom.el, 'zoomed-in')
+    }
+  });
 };
 
 
-
-var open_player = null;
-var open_player_data = null;
-
-var marker_popup = function(e){
-  // console.log(e, e.target)
-
-/*
-  map.leaflet.closePopup();
-
-  if (open_popup === e.target.data){
-    open_popup = null;
-    return;    
-  }
-*/
-  // if (map.leaflet._popup){
-    // open_popup = null;
-    // return;
-  // }
-
-  // console.log(e.target)
-
-  // var anchor = L.point(e.target.options.icon.options.popupAnchor || [0, 0]);
-  // anchor = anchor.add(L.Popup.prototype.options.offset);
-
-  // var anchor = L.point([]);
-
-  var content = "<div class='soundcloud-popup'>" + 
-  "<h2>We Raved Here:</h2>" +
-  "<h3>" + e.target.data.venue + "</h3>" +
-  "<a href='" + e.target.data.url + "' class='sc-player'>soundcloud set</a>" +
-  "</div>"
-
-  // var options = {offset:anchor};
-
-  if (open_player) map.leaflet.removeLayer(open_player);
-  if (open_player_data === e.target.data){
-    open_player_data = null;
-    return
-  }
-
-  open_player = new soundcloud.leaflet_layer(e.target._latlng, content)
-  open_player_data = e.target.data;
-
-  map.leaflet.addLayer(open_player);
-  return
-
-/*
-  map.leaflet.openPopup(content, e.target._latlng, {
-
-  // map.leaflet.openPopup(e.target.data.venue, e.target._latlng, {
-    offset: anchor
-  });
-  
-  $('a.sc-player, div.sc-player').scPlayer();
-
-
-  open_popup = e.target.data;  
-*/
-}
-
-var marker_init = function(){
-
-  var icon_path = './img/map/'
-  map.icon_blue = L.icon({
-      iconUrl: icon_path+'marker-icon.png',
-      iconRetinaUrl: icon_path+'marker-icon-2x.png',
-      shadowUrl: icon_path+'marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-  });
-
-  map.icon_blue_small = L.icon({
-      iconUrl: icon_path+'marker-icon.png',
-      iconRetinaUrl: icon_path+'marker-icon-2x.png',
-      shadowUrl: icon_path+'marker-shadow.png',
-      iconSize: [25*0.6, 41*0.6],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41*0.6, 41*0.6]
-  });
-
-  map.icon_pink = L.icon({
-      iconUrl: icon_path+'marker-icon-pink.png',
-      iconRetinaUrl: icon_path+'marker-icon-pink-2x.png',
-      shadowUrl: icon_path+'marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-  });
-
-  for (var iy=0, item_year; item_year=data[iy]; iy++){
-    var year = item_year.year;
-    var events = item_year.data.events;
-    if (!(year in events)) continue;
-    for (var i=0, item; item=events[year][i]; i++){
-      // var latlng = L.LatLng(parseFloat(item.latitude), parseFloat(item.longitude));
-      var marker = L.marker([parseFloat(item.latitude), parseFloat(item.longitude)], {
-        riseOnHover: true,
-        icon: map.icon_blue_small
-      });
-      marker.on('click', marker_popup);
-      marker.data = item;
-      // marker.bindPopup(item.venue);
-      marker.addTo(map.leaflet);
-      map.markers.push(marker);
-      item.marker = marker;
-    }
-  }
-}
-
 module.exports = map;
 
-},{"./data":10,"./dom":11,"./soundcloud":23,"./url":30}],19:[function(require,module,exports){
+},{"./css":10,"./dom":13,"./map_leaflet_edit":23,"./url":44}],23:[function(require,module,exports){
+// extensions, hacks, edits on the leaflet source
+
+// add an extra pane to contain animated pin bits
+L.MapWithAnimPane = L.Map.extend({
+    _initPanes: function () {
+    var panes = this._panes = {};
+
+    this._mapPane = panes.mapPane = this._createPane('leaflet-map-pane', this._container);
+
+    this._tilePane = panes.tilePane = this._createPane('leaflet-tile-pane', this._mapPane);
+    panes.objectsPane = this._createPane('leaflet-objects-pane', this._mapPane);
+    panes.shadowPane = this._createPane('leaflet-shadow-pane');
+    panes.overlayPane = this._createPane('leaflet-overlay-pane');
+    panes.markerAnimPane = this._createPane('leaflet-marker-anim-pane');
+    panes.markerPane = this._createPane('leaflet-marker-pane');
+    panes.popupPane = this._createPane('leaflet-popup-pane');
+
+    var zoomHide = ' leaflet-zoom-hide';
+
+    if (!this.options.markerZoomAnimation) {
+      L.DomUtil.addClass(panes.markerPane, zoomHide);
+      L.DomUtil.addClass(panes.markerAnimPane, zoomHide);
+      L.DomUtil.addClass(panes.shadowPane, zoomHide);
+      L.DomUtil.addClass(panes.popupPane, zoomHide);
+    }
+  },
+
+
+  _animatePathZoom: function (e) {
+console.log("FUCK")
+    var scale = this.getZoomScale(e.zoom),
+        offset = this._getCenterOffset(e.center)._multiplyBy(-scale)._add(this._pathViewport.min);
+
+    this._zoom_anim_start = Date.now();
+    this._zoom_anim_scale = scale;
+    this._zoom_anim_offset = offset;
+    // console.log(offset)
+    //console.log(scale);
+
+    // console.log(this._pathRoot.style[L.DomUtil.TRANSFORM], L.DomUtil.getTranslateString(offset))
+
+    this._pathRoot.style[L.DomUtil.TRANSFORM] =
+            L.DomUtil.getTranslateString(offset) + ' scale(' + scale + ') ';
+
+
+            console.log("FUCK")
+
+    // console.log(offset.x, offset.y, L.DomUtil.getTranslateString(offset) )
+
+    this._pathZooming = true;
+  },
+
+  _tryAnimatedZoom: function (center, zoom, options) {
+
+    if (this._animatingZoom) { return true; }
+
+    options = options || {};
+
+    // don't animate if disabled, not supported or zoom difference is too large
+    if (!this._zoomAnimated || options.animate === false || this._nothingToAnimate() ||
+            Math.abs(zoom - this._zoom) > this.options.zoomAnimationThreshold) { return false; }
+
+    // offset is the pixel coords of the zoom origin relative to the current center
+    var scale = this.getZoomScale(zoom),
+        offset = this._getCenterOffset(center)._divideBy(1 - 1 / scale),
+      origin = this._getCenterLayerPoint()._add(offset);
+
+    this._zoom_anim_start = Date.now();
+    this._zoom_anim_scale = scale;
+    this._zoom_anim_offset = offset;
+
+    // don't animate if the zoom origin isn't within one screen from the current center, unless forced
+    if (options.animate !== true && !this.getSize().contains(offset)) { return false; }
+
+    this
+        .fire('movestart')
+        .fire('zoomstart');
+
+    this._animateZoom(center, zoom, origin, scale, null, true);
+
+    return true;
+  },
+
+
+});
+
+L.IconAnim = L.Icon.extend({
+    _setIconStyles: function (img, name) {
+    var options = this.options,
+        size = L.point(options[name + 'Size']),
+        anchor;
+
+    if (name === 'shadow') {
+      anchor = L.point(options.shadowAnchor || options.iconAnchor);
+    } else if (name === 'anim') {
+      anchor = L.point(options.animAnchor || options.iconAnchor);
+    } else {
+      anchor = L.point(options.iconAnchor);
+    }
+
+    if (!anchor && size) {
+      anchor = size.divideBy(2, true);
+    }
+
+    img.className = 'leaflet-marker-' + name + ' ' + options.className;
+
+    if (anchor) {
+      img.style.marginLeft = (-anchor.x) + 'px';
+      img.style.marginTop  = (-anchor.y) + 'px';
+    }
+
+    if (size) {
+      img.style.width  = size.x + 'px';
+      img.style.height = size.y + 'px';
+    }
+  },
+
+  createAnim: function (oldAnim) {
+    return this._createIcon('anim', oldAnim);
+  }
+
+});
+
+
+
+L.Icon.prototype.createAnim = function (oldAnim) {
+    return this._createIcon('anim', oldAnim);
+  }
+
+
+
+
+L.MarkerAnim = L.Marker.extend({
+
+  _initIcon: function () {
+    var options = this.options,
+        map = this._map,
+        animation = (map.options.zoomAnimation && map.options.markerZoomAnimation),
+        classToAdd = animation ? 'leaflet-zoom-animated' : 'leaflet-zoom-hide';
+
+    var icon = options.icon.createIcon(this._icon),
+      addIcon = false;
+
+    // if we're not reusing the icon, remove the old one and init new one
+    if (icon !== this._icon) {
+      if (this._icon) {
+        this._removeIcon();
+      }
+      addIcon = true;
+
+      if (options.title) {
+        icon.title = options.title;
+      }
+    }
+
+    L.DomUtil.addClass(icon, classToAdd);
+
+    if (options.keyboard) {
+      icon.tabIndex = '0';
+    }
+
+    this._icon = icon;
+
+    this._initInteraction();
+
+    if (options.riseOnHover) {
+      L.DomEvent
+        .on(icon, 'mouseover', this._bringToFront, this)
+        .on(icon, 'mouseout', this._resetZIndex, this);
+    }
+
+    var newShadow = options.icon.createShadow(this._shadow),
+      addShadow = false;
+
+    if (newShadow !== this._shadow) {
+      this._removeShadow();
+      addShadow = true;
+    }
+
+    if (newShadow) {
+      L.DomUtil.addClass(newShadow, classToAdd);
+    }
+    this._shadow = newShadow;
+
+
+    var addAnim = false;
+    if (this.options.icon.options.animUrl){
+
+      var newAnim = options.icon.createAnim(this._anim);
+
+      if (newAnim !== this._anim) {
+        this._removeAnim();
+        addAnim = true;
+      }
+
+      if (newAnim) {
+        L.DomUtil.addClass(newAnim, classToAdd);
+      }
+      this._anim = newAnim;
+    }
+
+    if (options.opacity < 1) {
+      this._updateOpacity();
+    }
+
+
+    var panes = this._map._panes;
+
+    if (addIcon) {
+      panes.markerPane.appendChild(this._icon);
+    }
+
+    if (addAnim) {
+      panes.markerPane.appendChild(this._anim);
+
+      // panes.markerAnimPane.appendChild(this._anim);
+    }
+
+    if (newShadow && addShadow) {
+      panes.shadowPane.appendChild(this._shadow);
+    }
+  },
+
+  _removeAnim: function () {
+    if (this._anim) {
+      // this._map._panes.markerAnimPane.removeChild(this._anim);
+      this._map._panes.markerPane.removeChild(this._anim);
+
+    }
+    this._anim = null;
+  },
+
+  _setPos: function (pos) {
+    L.DomUtil.setPosition(this._icon, pos);
+
+    if (this._shadow) {
+      L.DomUtil.setPosition(this._shadow, pos);
+    }
+
+    if (this._anim) {
+      L.DomUtil.setPosition(this._anim, pos);
+    }
+
+    this._zIndex = pos.y + this.options.zIndexOffset;
+
+    this._resetZIndex();
+  },
+
+  _updateZIndex: function (offset) {
+    // console.log("buh", offset, "buh")
+    this._icon.style.zIndex = this._zIndex + offset;
+    if (this._anim)
+      this._anim.style.zIndex = this._zIndex + offset;
+  }
+
+
+
+});
+
+
+
+
+
+
+
+
+},{}],24:[function(require,module,exports){
+var math = {};
+
+math.lerp = function(a, b, w){
+  return (1 - w) * a + w * b;
+}
+
+module.exports = math;
+},{}],25:[function(require,module,exports){
 var m = {};
 
 m.x = 0;
@@ -1205,7 +1806,7 @@ m.init = function(){
 
 
 module.exports = m;
-},{}],20:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 
 
 var patterns = [];
@@ -1254,18 +1855,1010 @@ var popup_tail_fill_pattern_create = function(){
 }
 
 module.exports = popup_tail_fill_pattern_create
-},{}],21:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
+var data = require('./data');
+var url = require('./url');
+var map = require('./map');
+var player = require('./player');
+var hash_djb2 = require('./text').hash_djb2;
+
+var pin = {};
+
+var path_pin = './img/map/'
+var path_pin_anim = './img/pins/';
+
+
+var pin_anim_make = function(url){
+  return new L.DivIcon({
+    html: '<img src="/img/pins/strokeoverlay.png" class=pin-anim-overlay>' +
+          '<img src="' + url + '" class=pin-anim-bg>',
+    className: 'pin-anim',
+    iconAnchor: [15, 50]
+  });
+};
+
+var pin_url_from_id = function(id){
+  var hash = hash_djb2(id);
+  // console.log(hash, hash % pin.icons_anim.length)
+  return pin.icons_anim[hash % pin.icons_anim.length]
+}
+
+pin.init = function(){
+
+
+  pin.icon_blue = L.icon({
+      iconUrl: path_pin+'marker-icon.png',
+      iconRetinaUrl: path_pin+'marker-icon-2x.png',
+      shadowUrl: path_pin+'marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+  });
+
+  pin.icon_blue_small = L.icon({
+      iconUrl: path_pin+'marker-icon.png',
+      iconRetinaUrl: path_pin+'marker-icon-2x.png',
+      shadowUrl: path_pin+'marker-shadow.png',
+      iconSize: [25*0.6, 41*0.6],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41*0.6, 41*0.6]
+  });
+
+  pin.icon_pink = L.icon({
+      iconUrl: path_pin+'marker-icon-pink.png',
+      iconRetinaUrl: path_pin+'marker-icon-pink-2x.png',
+      shadowUrl: path_pin+'marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+  });
+
+  pin.icon_geocode = L.icon({
+      iconUrl: path_pin+'marker-icon-pink-2x.png',
+      // iconRetinaUrl: path_pin+'marker-icon-pink-2x.png',
+      shadowUrl: path_pin+'marker-shadow.png',
+      // iconSize: [50, 82],
+      // iconAnchor: [25, 82],
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+  });
+
+  pin.icon_geocode2 = new L.IconAnim({
+      animUrl: './img/pins/blue_1.gif',
+      // iconUrl: path_pin+'marker-icon-pink-2x.png',
+      iconUrl: './img/pins/strokeoverlay.png',
+      // iconRetinaUrl: path_pin+'marker-icon-pink-2x.png',
+      shadowUrl: path_pin+'marker-shadow.png',
+      // iconSize: [50, 82],
+      // iconAnchor: [25, 82],
+      iconSize: [30, 50],
+      iconAnchor: [15, 50],
+      popupAnchor: [1, -34],
+      shadowAnchor: [12, 41],
+      shadowSize: [41, 41]
+  });
+
+  pin.icons_anim = [];
+  for (var i=1; i<17; i++){
+    pin.icons_anim.push(pin_anim_make(path_pin_anim + 'red_' + i + '.gif'));
+    pin.icons_anim.push(pin_anim_make(path_pin_anim + 'green_' + i + '.gif'));
+    pin.icons_anim.push(pin_anim_make(path_pin_anim + 'blue_' + i + '.gif'));
+  }
+
+  pin.data_onto_map();
+
+  pin.geocode = L.marker([0,0], {
+      icon: pin.icon_geocode,
+      draggable: true
+  });
+
+  pin.geocode.on('dragend', function(e){
+    geocode.from_latlng(e.target._latlng.lat, e.target._latlng.lng, pin.geocode_fn)
+  });
+
+  pin.geocode_fn = function(results){ console.log(results) };
+
+};
+
+pin.data_onto_map = function(){
+
+/*
+  var marker_cluster = L.markerClusterGroup({
+    // disableClusteringAtZoom: 7,
+    // animateAddingMarkers: true,
+    maxClusterRadius: 35
+    // zoomToBoundsOnClick: false
+  });
+*/
+    
+  /*
+    for (var i = 0; i < addressPoints.length; i++) {
+      var a = addressPoints[i];
+      var title = a[2];
+      var marker = L.marker(new L.LatLng(a[0], a[1]), { title: title });
+      marker_cluster.bindPopup(title);
+      marker_cluster.addLayer(marker);
+    }
+  */
+    
+
+  for (var iy=0, item_year; item_year=data[iy]; iy++){
+    var year = item_year.year;
+    var events = item_year.data.events;
+    if (!(year in events)) continue;
+    for (var i=0, item; item=events[year][i]; i++){
+      // var latlng = L.LatLng(parseFloat(item.latitude), parseFloat(item.longitude));
+      // var p = L.marker([parseFloat(item.latitude), parseFloat(item.longitude)], {
+
+      // cluster
+/*
+
+      var p = new L.MarkerAnim([parseFloat(item.latitude), parseFloat(item.longitude)], {
+        riseOnHover: true,
+        //icon: pin.icon_html //pin.icon_geocode2
+        icon: pin_url_from_id(item.id)
+      });
+      p.on('click', player.popup);
+      p.data = item;
+      item.pin = p;
+      marker_cluster.addLayer(p);
+      map.pins.push(p);
+*/
+      // no-cluster
+
+      var p = new L.MarkerAnim([parseFloat(item.latitude), parseFloat(item.longitude)], {
+        riseOnHover: true,
+        //icon: pin.icon_html //pin.icon_geocode2
+        icon: pin_url_from_id(item.id)
+      });
+      p.on('click', player.popup);
+      p.data = item;
+      item.pin = p;
+      // marker.bindPopup(item.venue);
+      p.addTo(map.leaflet);
+      map.pins.push(p);
+      
+    
+      
+
+    }
+  }
+
+  //   marker_cluster.on('clusterclick', function (a) {
+  //     a.layer.spiderfy();
+  //   });
+  // map.leaflet.addLayer(marker_cluster);
+
+
+}
+
+// map.removeLayer(marker)
+
+pin.geocode_place = function(lat, lng){
+
+  if (!pin.geocode._map) pin.geocode.addTo(map.leaflet)
+
+  pin.geocode.setLatLng([lat, lng])
+
+};
+
+pin.geocode_remove = function(){
+  map.leaflet.removeLayer(pin.geocode);
+}
+
+//pin.geocode
+
+module.exports = pin;
+},{"./data":12,"./map":22,"./player":28,"./text":36,"./url":44}],28:[function(require,module,exports){
+var url = require('./url');
+var map = require('./map');
+var loop = require('./anim_loop');
+
+var audio = require('./audio');
+require('./player_leaflet');
+var soundcloud = require('./player_soundcloud');
+var mixcloud = require('./player_mixcloud');
+
+var player = {};
+
+player.layer_leaflet = null;
+player.layer_id = null;
+
+var popup_wrapper_html = function(data, html_to_wrap){
+  html_to_wrap = html_to_wrap || ""
+
+  // console.log(html_to_wrap)
+
+  var content = 
+  "<div class=player-popup>" + 
+    "<h2>We Raved Here:</h2>" +
+    "<h3>" + data.venue + "</h3>" +
+    '<img src="img/player/close.png" class=player-close>' + 
+    "<div class=player-embed-container>" +
+      html_to_wrap +
+    // "<a href='" + data.url + "' class='sc-player'>soundcloud set</a>" +
+    "</div>" +
+  "</div>"
+
+  return content
+};
+
+player.anim = function(){
+  if (!player.layer_id || !player.player_type.anim) return;
+  player.player_type.anim(player.layer_leaflet)
+}
+
+player.close = function(){
+  if (player.layer_leaflet) {
+    map.leaflet.removeLayer(player.layer_leaflet);
+    player.layer_leaflet = null;
+  }
+  player.layer_id = null;
+}
+
+player.pan_map_to_fit = function(){
+  var r = player.layer_leaflet._el.getBoundingClientRect()
+    , pan_x = 0
+    , pan_y = 0
+    , pad = 50
+    , ww = window.innerWidth
+    , wh = window.innerHeight
+
+  if (r.left < pad) pan_x = r.left - pad;
+
+  if (r.right > ww - pad) pan_x = Math.abs(ww - r.right) + pad;
+
+  if (r.top < pad) pan_y = r.top - pad;
+
+  if (r.bottom > wh - pad) pan_y = Math.abs(wh - r.bottom) + pad;
+
+  if (pan_x !== 0 || pan_y !== 0)
+    map.leaflet.panBy([pan_x, pan_y]);  
+};
+
+
+
+player.popup = function(e){
+
+  var data = e.target.data;
+
+  var u = url.parse(data.url);
+
+  if (player.layer_id === data.id){ // same pin clicked as current open player... just close
+    player.close()
+    return;
+  } else {
+    player.close()
+  }
+
+  var domain_parts = u.host.split(".")
+  var domain = domain_parts[domain_parts.length - 2];
+
+  if (domain === 'soundcloud')
+    var player_type = soundcloud
+  else if (domain === 'mixcloud')
+    var player_type = mixcloud
+  else
+    return;
+
+  var initial_content = player_type.initial_content(data)
+  var content = popup_wrapper_html(data, initial_content)
+
+  var opts = {
+      latlng: e.target._latlng
+    , html: content
+    , fn_add: player_type.fn_add
+    , fn_rm: player_type.fn_rm
+    , fn_close_popup: player.close
+    , url: data.url
+  };
+
+
+
+
+
+  // u.directory
+
+  player.layer_leaflet = new L.PlayerPopup(opts)
+  player.player_type = player_type;
+  // player.layer_leaflet = new soundcloud.leaflet_layer(opts)
+  player.layer_id = data.id;
+
+
+
+
+  map.leaflet.addLayer(player.layer_leaflet);
+
+  player.pan_map_to_fit();
+
+
+/*
+  map.leaflet.closePopup();
+
+  if (open_popup === e.target.data){
+    open_popup = null;
+    return;    
+  }
+*/
+  // if (map.leaflet._popup){
+    // open_popup = null;
+    // return;
+  // }
+
+  // console.log(e.target)
+
+  // var anchor = L.point(e.target.options.icon.options.popupAnchor || [0, 0]);
+  // anchor = anchor.add(L.Popup.prototype.options.offset);
+
+  // var anchor = L.point([]);
+
+
+
+  // var options = {offset:anchor};
+
+
+
+
+
+  // if (open_player._el)
+
+  // 7window.FUCK = open_player._el
+
+
+  // pan map to contain player
+
+
+  // console.log(r.top, r.right, r.bottom, r.left);
+
+
+
+  // console.log(open_player._el)
+  // return
+
+/*
+  map.leaflet.openPopup(content, e.target._latlng, {
+
+  // map.leaflet.openPopup(e.target.data.venue, e.target._latlng, {
+    offset: anchor
+  });
+  
+  $('a.sc-player, div.sc-player').scPlayer();
+
+
+  open_popup = e.target.data;  
+*/
+};
+
+player.init = function(){
+  audio.init();
+  loop.add(player.anim)
+}
+
+module.exports = player;
+},{"./anim_loop":3,"./audio":6,"./map":22,"./player_leaflet":29,"./player_mixcloud":30,"./player_soundcloud":31,"./url":44}],29:[function(require,module,exports){
+var empty = require('./fn').empty
+var text2el = require('./dom').text2el;
+
+// soundcloud.leaflet_layer = L.Class.extend({
+L.PlayerPopup = L.Class.extend({
+
+    options: {},
+
+    initialize: function (opts) {
+        // save position of the layer or any options from the constructor
+
+        this._latlng = opts.latlng;
+        this._html = opts.html;
+        this._fn_add = opts.fn_add || empty;
+        this._fn_rm = opts.fn_rm || empty;
+        this._url = opts.url;
+        this._fn_close_popup = opts.fn_close_popup || empty;
+
+        // console.log(opts)
+
+        // console.log(this.options);
+        // this._fn_
+        // this._offset = options.offset
+        // L.setOptions(this, options);
+    },
+
+    onAdd: function (map) {
+
+        var layer = this;
+
+        this._map = map;
+
+        // create a DOM element and put it into one of the map panes
+        // this._el = L.DomUtil.create('div', 'my-custom-layer leaflet-zoom-hide');
+        this._el = text2el(this._html);
+
+
+
+        // map.getPanes().overlayPane.appendChild(this._el);
+        map.getPanes().popupPane.appendChild(this._el);
+
+
+        var close_button = this._el.querySelector(".player-close");
+        close_button.addEventListener("click", this._fn_close_popup)
+
+        this._fn_add(this);
+        // $('a.sc-player, div.sc-player').scPlayer();
+
+        // console.log(this._el.offsetWidth, this._el.offsetHeight)
+
+        this._offset = L.point([-(this._el.offsetWidth/2)|0, -this._el.offsetHeight - 45])
+        // this._offset = this._offset.add(L.Popup.prototype.options.offset);
+
+        // add a viewreset event listener for updating layer's position, do the latter
+        map.on('viewreset', this._reset, this);
+        this._reset();
+    },
+
+    onRemove: function (map) {
+        // remove layer's DOM elements and listeners
+        this._fn_rm(this);
+        
+        map.getPanes().popupPane.removeChild(this._el);
+        // $.scPlayer.stopAll();
+        map.off('viewreset', this._reset, this);
+    },
+
+    _reset: function () {
+        // update layer's position
+        // console.log(this._offset)
+        // var pos = this._map.latLngToLayerPoint(this._latlng);
+
+        var pos = this._offset.add(this._map.latLngToLayerPoint(this._latlng));
+        L.DomUtil.setPosition(this._el, pos);
+    }
+});
+},{"./dom":13,"./fn":16}],30:[function(require,module,exports){
+// http://www.mixcloud.com/developers/documentation/#embedding
+// 
+
+var extend = require('./extend');
+var text2el = require('./dom').text2el;
+var url = require('./url');
+var xhr = require('./xhr');
+var jsonp = require('./jsonp');
+
+var mixcloud = {};
+
+//var req_embed_html = function(url){
+//  var xhr = new XMLHttpRequest();
+//  xhr.get(url, {
+//            load: function(){ console.log(arguments, this) }
+//          , error: function(){ console.log(arguments, this) }
+//  })
+//}
+
+var player_add_fetched_embed_json_to_layer = function(layer){
+  return function(json){
+    if (json.html)
+      layer._el_container.innerHTML = json.html
+  }
+}
+
+mixcloud.fn_add = function(layer){ 
+  layer._el_container = layer._el.querySelector('.player-embed-container');
+  var u = url.parse(layer._url);
+
+  // use initial_content to embed iframe instead...
+  //var url_embedjson = "http://api.mixcloud.com" + u.directory + "embed-json/?color=000000&callback={{callback}}"
+  //jsonp.get(url_embedjson, { load: player_add_fetched_embed_json_to_layer(layer) })
+
+};
+
+mixcloud.fn_rm = function(){ 
+    // $('.sc-player.playing a.sc-pause').click();
+};
+
+mixcloud.initial_content = function(data){
+  // return ""
+  return '<iframe width=400 height=300 ' +
+    'src="//www.mixcloud.com/widget/iframe/?' + 
+      'feed=' + encodeURIComponent(data.url) + //'http%3A%2F%2Fwww.mixcloud.com%2FSlipmatt%2Fslipmatt-world-of-rave-28%2F' + 
+      '&amp;mini=true' +
+      '&amp;stylecolor=000000' +
+      '&amp;hide_artwork=true' +
+      '&amp;embed_type=widget_standard' +
+      // '&amp;embed_uuid=1b8d968a-a85e-404e-926e-7cbecdaf56d7' +
+      '&amp;hide_tracklist=' +
+      '&amp;hide_cover=' +
+      '&amp;autoplay="' + 
+  'frameborder=0></iframe>'
+}
+
+module.exports = mixcloud;
+
+
+},{"./dom":13,"./extend":15,"./jsonp":21,"./url":44,"./xhr":45}],31:[function(require,module,exports){
+var extend = require('./extend');
+var text2el = require('./dom').text2el;
+var domq = require('./dom').q;
+var geom = require('./geom');
+
+var touches = require('./touches')
+
+var xhr = require('./xhr');
+require('./player_soundcloud_leaflet_edit');
+var waveform = require('./player_soundcloud_waveform');
+var audio = require('./audio')
+
+var api_key= 'htuiRd1JP11Ww0X72T1C3g'; //todo, get actual key
+
+// SC - soundcloud sdk
+SC.initialize({});
+
+var soundcloud = {};
+
+var cache = soundcloud.cache = {};
+cache.oembed = {};
+cache.url2trackid = {};
+cache.api_track = {};
+cache.waveform_json = {};
+cache.waveform_mask = {};
+
+
+// waveform
+var waveform_hit_test_fn = function(x, y){
+  console.log("foo")
+  return geom.bounds_hit_test(soundcloud['bounds_player_waveform'], x, y)
+};
+
+// var scale_mousemove = function(x,y,e, state){
+//   if (scale_hit_test_fn(x,y)){
+//     if (!model.mouseover){
+//       model.mouseover = true
+//     }
+//     model.dirty = true;
+//   } else {
+//     if (model.mouseover){
+//       model.mouseover = false
+//       model.dirty = true;
+//     }        
+//   }
+// };
+
+var waveform_move_while_down = function(x, y, e, state){
+  e.preventDefault();
+  e.stopPropagation();
+
+  // console.log("foo")
+  waveform_set_value(x);
+};
+
+var waveform_set_value = function(x){
+
+  var bounds = soundcloud['bounds_player_waveform'];
+
+  var w = bounds.x2 - bounds.x1
+
+  var x_in_px = x - bounds.x1;
+  var x_in_percent = x_in_px / w
+  if (x_in_percent < 0) x_in_percent = 0
+  if (x_in_percent > 1) x_in_percent = 1
+
+  if (audio.player && 'currentTime' in audio.player)
+    audio.player.currentTime = x_in_percent * audio.player.duration;
+  else if (audio.player && 'setPosition' in audio.player)
+    audio.player.setPosition(x_in_percent * audio.player.duration);
+
+
+
+
+    //model.step = model.waveform_scale(x);
+    //model.dirty = true;
+    console.log(x)
+};
+
+var touches_waveform = {
+  bounds_check_down: waveform_hit_test_fn,
+  move_while_down: waveform_move_while_down,
+  up: waveform_set_value,
+  // mousemove: scale_mousemove
+};
+
+
+
+
+
+
+
+
+
+// have soundcloud url... then:
+//    jsonp fetch oembed to get track id... then:
+//        jsonp fetch track json using track id... then:
+//            xhr fetch waveform data for track using track json
+//            fetch stream using track json
+
+soundcloud.fn_add = function(layer){ 
+    layer._closed = false
+
+    layer._el_sc_wrapper = layer._el.querySelector('.soundcloud-player');
+    layer._el_sc_play_pause = layer._el.querySelector('.soundcloud-play-pause');
+    layer._el_waveform = layer._el.querySelector('.soundcloud-waveform');
+    layer._el_sc_title = layer._el.querySelector('.soundcloud-track-title');
+
+    layer._el_waveform.width = waveform.w
+    layer._el_waveform.height = waveform.h
+
+    layer._waveform_ctx = layer._el_waveform.getContext('2d')
+
+    layer._el_sc_wrapper.style.height = (80 + waveform.h) + "px"
+
+    layer._el_sc_play_pause.addEventListener('click', function(){
+      if (audio.player && audio.player.paused) audio.play()
+      else if (audio.player && !audio.player.paused) audio.pause();
+    });
+
+    touches.down_and_up(touches_waveform);
+
+    // get track info from soundcloud api... first, grab the oembed of a url
+    var url = layer._url;
+
+    if (url in cache.oembed)
+      soundcloud_oembed_fetched(layer)();
+    else
+      SC.oEmbed(url, soundcloud_oembed_fetched(layer));
+
+    
+
+    // $('a.sc-player-old, div.sc-player-old').scPlayer();
+
+};
+
+soundcloud.fn_rm = function(layer){
+  layer._closed = true
+  audio.stop();
+    // $('.sc-player.playing a.sc-pause').click();
+};
+
+var soundcloud_oembed_fetched = function(layer){ return function(oembed_json, err){
+  if (layer._closed) return;
+
+  var url = layer._url;
+
+  if (oembed_json) cache.oembed[url] = oembed_json;
+  else oembed_json = oembed_json || cache.oembed[url];
+
+  if (oembed_json === null || oembed_json === undefined || err){
+    console.log("error", err, url)
+    return;
+  }
+  // render title
+  layer._el_sc_title.innerHTML = oembed_json.title
+
+  // fetch track info
+  if (url in cache.url2trackid)
+    soundcloud_api_track_fetched(layer)();
+  //return
+  else {
+    var tracks_match = oembed_json.html.match(/%2Ftracks%2F([0-9]+)/) // brittle
+    if (!tracks_match || tracks_match.length < 2) {
+      console.log(oembed_json.html)
+      return
+    }
+    var trackid = tracks_match[1]
+    cache.url2trackid[url] = trackid
+    var track_url = "/tracks/" + trackid + ".json"
+    var opts = { consumer_key: api_key };
+    SC.get(track_url, opts, soundcloud_api_track_fetched(layer));
+  }
+
+
+  // %2Ftracks%2F
+
+  // if (json.title)
+// "<iframe width="100%" height="166" scrolling="no" frameborder="no" src="https://w.soundcloud.com/player/?url=http%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F39100048&show_artwork=true"></iframe>"
+  // console.log(json)
+
+}};
+
+var soundcloud_api_track_fetched = function(layer){ return function(track_json, err){
+  if (layer._closed) return;
+
+  var url = layer._url;
+
+  if (track_json) 
+    cache.api_track[url] = track_json;
+  else
+    track_json = track_json || cache.api_track[url];
+
+  if (track_json === null || track_json === undefined || err)
+     { console.log("error", err, url); return }
+
+  // render soundcloud player
+  if (url in cache.waveform_mask)
+    soundcloud_waveform_fetched(layer)();  
+  else {
+    // change http://w1.sndcdn.com/_.png to
+    // http://wis.sndcdn.com/_.png
+    var url_waveform_data = track_json.waveform_url.split(".")
+    url_waveform_data.shift()
+    url_waveform_data.unshift("http://wis")
+    url_waveform_data = url_waveform_data.join(".")
+    xhr.get(url_waveform_data, {
+        load: soundcloud_waveform_fetched(layer)
+    });
+
+    // console.log(url_waveform_data)
+  }
+
+  if (track_json.streamable){
+    // to figure out: why do i gotta switch this to https to get it to work?
+    var url_stream = track_json.stream_url.replace(/^http:/, 'https:')
+    url_stream = url_stream + (/\?/.test(url_stream) ? '&' : '?') + 'consumer_key=' + api_key;
+    audio.load_and_play(url_stream);
+    // audio.play();
+  }
+
+  // console.log(json, err)
+}};
+
+
+var soundcloud_waveform_fetched = function(layer){ return function(e){
+  if (layer._closed) return;
+
+  var url = layer._url;
+
+  if (e && e.target && e.target.responseText) {
+    var waveform_json = cache.waveform_json[url] = JSON.parse(e.target.responseText)
+    var waveform_mask = cache.waveform_mask[url] = waveform.render(url, waveform_json)
+  } else
+    var waveform_mask = cache.waveform_mask[url]
+  // else: no mask...
+
+
+
+  // console.log(cache.api_track[layer._url])
+
+  // document.body.appendChild(waveform_mask)
+  // console.log(waveform)
+
+  // render waaveform
+  
+}}
+
+
+soundcloud.anim = function(layer){
+  // console.log(layer)
+  if (!(layer._url in cache.waveform_mask)) return;
+
+
+  var waveform_mask = cache.waveform_mask[layer._url]
+  var ctx = layer._waveform_ctx
+    , c = ctx.canvas
+
+  var r = c.getBoundingClientRect()
+
+  var s_x = r.left
+    , s_y = r.top
+    , s_w = waveform.w
+    , s_h = waveform.h
+    , ww = canvas.width
+    , wh = canvas.height
+    , dest_offset_x = 0
+    , dest_offset_y = 0
+
+  if (s_x > ww || s_y > wh) return;
+
+  // console.log("ok")
+
+  cursor.bounds.player_waveform = soundcloud.bounds_player_waveform = {
+      x1: s_x, x2: s_x + s_w,
+      y1: s_y, y2: s_y + s_h,
+      mouseover: 'pointer'
+  };
+
+  // cursor.bounds.player_waveform = soundcloud.bounds_player_waveform = {
+  //     x1: s_x, x2: s_x + s_w,
+  //     y1: s_y, y2: s_y + s_h,
+  //     mouseover: 'pointer'
+  // };
+
+  if (s_x < 0) {
+    s_w += s_x
+    dest_offset_x = -s_x
+    s_x = 0;
+  }
+  if (s_y < 0) {
+    s_h += s_y
+    dest_offset_y = -s_y
+    s_y = 0;
+  }
+
+  if (s_x + s_w > ww){
+    s_w = ww - s_x
+  }
+
+  if (s_y + s_h > wh){
+    s_h = wh - s_y
+  }
+
+
+
+  // console.log(s_x,s_y,s_w,s_h, dest_offset_x,dest_offset_y,s_w,s_h)
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(canvas, s_x,s_y,s_w,s_h, dest_offset_x,dest_offset_y,s_w,s_h)
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.drawImage(waveform_mask, dest_offset_x,dest_offset_y,s_w,s_h, dest_offset_x,dest_offset_y,s_w,s_h);
+
+  // console.log(audio.player)
+
+  if (audio.player && audio.player.duration){
+    var duration = audio.player.durationEstimate || audio.player.duration
+    var pos = audio.player.currentTime || audio.player.position
+    // console.log(audio.player.currentTime, audio.player.duration)
+    var cursor_percent = parseInt(pos) / parseInt(duration)
+    var cursor_position_px = Math.round(waveform.w * cursor_percent);
+    ctx.globalCompositeOperation = 'source-over';
+
+    if (audio.player.paused){
+      ctx.fillStyle = '#fff'
+    } else {
+      var color_value_hex = (((Math.sin(Date.now() / 100) * 128) + 128) |0).toString(16);
+      if (color_value_hex.length === 1) color_value_hex = '0' + color_value_hex
+      ctx.fillStyle = '#' + color_value_hex + color_value_hex + color_value_hex;    
+    }
+
+
+    // ctx.fillStyle = '#fff'
+    ctx.fillRect(cursor_position_px,0, 1,waveform.h)
+
+    // console.log(cursor_percent)
+  }
+
+
+
+
+}
+
+soundcloud.initial_content = function(data){
+  var html = "<a href='" + data.url + "' class='sc-player-old'>soundcloud set</a>" +
+      '<div class=soundcloud-player>' +
+      '<div class=soundcloud-play-pause></div>' +
+      '<h3 class=soundcloud-track-title></h3>' +
+      '<canvas class=soundcloud-waveform></canvas>' +
+      '</div>'
+
+  return html
+
+}
+
+module.exports = soundcloud;
+
+
+// <iframe width="100%" height="166" scrolling="no" frameborder="no" src="https://w.soundcloud.com/player/?url=http%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F113559292"></iframe>
+},{"./audio":6,"./dom":13,"./extend":15,"./geom":19,"./player_soundcloud_leaflet_edit":32,"./player_soundcloud_waveform":33,"./touches":42,"./xhr":45}],32:[function(require,module,exports){
+// had to edit this to allow clicking on a canvas waveform inside soundcloud player popup!
+
+L.Draggable.prototype._onDown = function (e) {
+  this._moved = false;
+
+  if (e.shiftKey || ((e.which !== 1) && (e.button !== 1) && !e.touches)) { return; }
+
+  // timb edit
+  // L.DomEvent.stopPropagation(e);
+
+  if (L.Draggable._disabled) { return; }
+
+  L.DomUtil.disableImageDrag();
+  L.DomUtil.disableTextSelection();
+
+  var first = e.touches ? e.touches[0] : e,
+      el = first.target;
+
+  // if touching a link, highlight it
+  if (L.Browser.touch && el.tagName && el.tagName.toLowerCase() === 'a') {
+    L.DomUtil.addClass(el, 'leaflet-active');
+  }
+
+  if (this._moving) { return; }
+
+  this._startPoint = new L.Point(first.clientX, first.clientY);
+  this._startPos = this._newPos = L.DomUtil.getPosition(this._element);
+
+  L.DomEvent
+      .on(document, L.Draggable.MOVE[e.type], this._onMove, this)
+      .on(document, L.Draggable.END[e.type], this._onUp, this);
+}
+},{}],33:[function(require,module,exports){
+var Benchmark = require('./benchmark');
+
+var waveform = {};
+
+var cache_ctx;
+
+waveform.w = 400;
+waveform.h = 35;
+var fillStyle = "#000";
+
+// soundcloud data looks like
+// {width:1, height:1, samples:[]}
+var render_unscaled_canvas = function(json){
+
+  var w = json.width
+    , h = json.height
+    , h2 = h*2
+    , cursor = w
+    , s = json.samples
+
+  if (cache_ctx && 
+      cache_ctx.canvas.width === w &&
+      cache_ctx.canvas.height === h2){
+    var ctx = cache_ctx
+      , c = cache_ctx.canvas;
+    ctx.clearRect(0,0, w, h2)
+  } else {
+    var c = document.createElement('canvas')
+      , ctx = c.getContext('2d');
+    c.width = w
+    c.height = h2
+    cache_ctx = ctx;
+  }
+
+  ctx.fillStyle = fillStyle;
+
+  while(cursor--){
+    var val = s[cursor];
+    ctx.fillRect(cursor, h-val, 1, val*2)
+    // console.log(l)
+  }
+
+  return c
+};
+
+var render_scaled_canvas = function(canvas_original){
+  var c = document.createElement('canvas');
+  c.width = waveform.w;
+  c.height = waveform.h;
+  var ctx = c.getContext('2d');
+
+  ctx.drawImage(canvas_original, 0,0, canvas_original.width, canvas_original.height,
+                                 0,0, c.width, c.height);
+
+  return c;
+}
+
+waveform.render = function(url, json){
+
+  // var b = Benchmark();
+
+  // b.start("draw")
+
+  var canvas_scaled = render_scaled_canvas(render_unscaled_canvas(json))
+
+  return canvas_scaled
+
+  // b.stop("draw")
+  // console.log(b)
+
+  // document.body.appendChild(canvas_scaled)
+
+};
+
+module.exports = waveform;
+},{"./benchmark":9}],34:[function(require,module,exports){
 var popup = {};
 
 popup.list = {};
 
 popup.close = function(){
-  for (key in popup.list)
+  for (var key in popup.list)
     popup.list[key].close();
 };
 
+popup.width = 400;
+
 module.exports = popup;
-},{}],22:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 // https://twitter.com/about/resources/buttons#tweet
 
 var domq = require('./dom').q;
@@ -1346,72 +2939,25 @@ share.close = function(){
 }
 
 module.exports = share;
-},{"./anim_loop":3,"./dom":11,"./pattern":20,"./popup":21}],23:[function(require,module,exports){
-var text2el = require('./dom').text2el;
+},{"./anim_loop":3,"./dom":13,"./pattern":26,"./popup":34}],36:[function(require,module,exports){
+var text = {};
 
-var soundcloud = {};
 
-soundcloud.render = function(){
-  
+// ported from http://www.cse.yorku.ca/~oz/hash.html
+// probably a bad idea to % unicode char values into a byte?
+text.hash_djb2 = function(txt){
+  var chars = txt.split("")
+  var hash = 5381;
+  var c
+
+  while (c = chars.pop())
+    hash = ((hash << 5) + hash) + (c.charCodeAt(0) % 256); /* hash * 33 + c */
+
+  return hash
 }
 
-soundcloud.leaflet_layer = L.Class.extend({
-
-    options: {},
-
-    initialize: function (latlng, content, options) {
-        // save position of the layer or any options from the constructor
-        this._latlng = latlng;
-        this._content = content;
-        // this._offset = options.offset
-        // L.setOptions(this, options);
-    },
-
-    onAdd: function (map) {
-        this._map = map;
-
-        // create a DOM element and put it into one of the map panes
-        // this._el = L.DomUtil.create('div', 'my-custom-layer leaflet-zoom-hide');
-        this._el = text2el(this._content);
-
-        // map.getPanes().overlayPane.appendChild(this._el);
-        map.getPanes().popupPane.appendChild(this._el);
-        $('a.sc-player, div.sc-player').scPlayer();
-
-        // console.log(this._el.offsetWidth, this._el.offsetHeight)
-
-        this._offset = L.point([-(this._el.offsetWidth/2)|0, -this._el.offsetHeight - 45])
-        // this._offset = this._offset.add(L.Popup.prototype.options.offset);
-
-        // add a viewreset event listener for updating layer's position, do the latter
-        map.on('viewreset', this._reset, this);
-        this._reset();
-    },
-
-    onRemove: function (map) {
-        // remove layer's DOM elements and listeners
-        $('.sc-player.playing a.sc-pause').click();
-        map.getPanes().popupPane.removeChild(this._el);
-        // $.scPlayer.stopAll();
-        map.off('viewreset', this._reset, this);
-    },
-
-    _reset: function () {
-        // update layer's position
-        // console.log(this._offset)
-        // var pos = this._map.latLngToLayerPoint(this._latlng);
-
-        var pos = this._offset.add(this._map.latLngToLayerPoint(this._latlng));
-        L.DomUtil.setPosition(this._el, pos);
-    }
-});
-
-
-module.exports = soundcloud;
-
-
-// <iframe width="100%" height="166" scrolling="no" frameborder="no" src="https://w.soundcloud.com/player/?url=http%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F113559292"></iframe>
-},{"./dom":11}],24:[function(require,module,exports){
+module.exports = text;
+},{}],37:[function(require,module,exports){
 var metrics = {};
 
 // get size of some text via dom
@@ -1503,7 +3049,7 @@ var text_metrics = function(text, css_props){ css_props = css_props || {};
 */
 
 module.exports = metrics;
-},{}],25:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 var tiles = {};
 
 tiles.uk_mask_data = {3:{3:[5],4:[5]},4:{7:[10,11],8:[10]},5:{14:[22],15:[21,22],16:[21]},6:{29:[44],30:[42,43,44],31:[42,43,44,45],32:[42,43]},7:{59:[89],60:[85,86,87,89],61:[84,85,86,87,88,89],62:[84,85,86,87,88,89,90],63:[84,85,86,87,88,89,90,91],64:[85,86]}};
@@ -1513,7 +3059,7 @@ tiles.uk_mask_regex = /uk_mask\/([0-9]+)\/([0-9]+)\/([0-9]+)\.png$/;
 tiles.world_regex = /world\/([0-9]+)\/([0-9]+)\/([0-9]+)\.png$/;
 
 module.exports = tiles;
-},{}],26:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 var m = require('./mouse');
 var data = require('./data');
 var cursor = require('./cursor');
@@ -1521,6 +3067,8 @@ var geom = require('./geom');
 var domq = require('./dom').q;
 var loop = require('./anim_loop');
 var map = require('./map');
+var pin = require('./pin');
+
 
 var draw = require('./draw');
 
@@ -1672,6 +3220,7 @@ timeline.render = function(){
       wpx = w +'px',                hpx = h +'px',
       l = (w_units - button_w) |0,  lpx = l +'px', // centered horizontally
       t = 10,                       tpx = t +'px'
+      pad_date = 4
 
   if (model.resize){
     model.resize = false;
@@ -1714,9 +3263,9 @@ timeline.render = function(){
     style.top = tpx;
     style.left = lpx;
 
-    var date_height = t + h + 0
+    var date_height = h + pad_date + 0
     dom.el_date.style.top = date_height +'px';
-    timeline.date_left = l
+    // timeline.date_left = l
 
   }
 
@@ -1788,10 +3337,10 @@ timeline.render = function(){
       if (!(year in events)) continue;
       var marker_matches_year = date_year === parseInt(year);
       var opacity = marker_matches_year ? 1.0 : 0.7;
-      var icon = marker_matches_year ? map.icon_pink : map.icon_blue;
+      //var icon = marker_matches_year ? pin.icon_pink : pin.icon_html;
 
       for (var i=0, item; item=events[year][i]; i++){
-        item.marker.setIcon(icon)
+      //  item.pin.setIcon(icon)
         // item.marker.setOpacity(opacity);
         // if (marker_matches_year) item.marker.openPopup();
         // else item.marker.closePopup();
@@ -1804,7 +3353,7 @@ timeline.proto = {};
 module.exports = timeline;
 
 
-},{"./anim_loop":3,"./cursor":9,"./data":10,"./dom":11,"./draw":12,"./geom":16,"./map":18,"./mouse":19,"./timeline_model":27}],27:[function(require,module,exports){
+},{"./anim_loop":3,"./cursor":11,"./data":12,"./dom":13,"./draw":14,"./geom":19,"./map":22,"./mouse":25,"./pin":27,"./timeline_model":40}],40:[function(require,module,exports){
 var model = {};
 
 model.year_min = 1988
@@ -1821,7 +3370,7 @@ model.dirty = true;
 model.resize = true;
 
 module.exports = model;
-},{}],28:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 var domq = require('./dom').q;
 
 var metrics = require('./text_metrics');
@@ -1907,7 +3456,7 @@ text_title.render = function(){
 }
 
 module.exports = text_title;
-},{"./dom":11,"./text_metrics":24}],29:[function(require,module,exports){
+},{"./dom":13,"./text_metrics":37}],42:[function(require,module,exports){
 
 // var m = require('./mouse');
 
@@ -1930,6 +3479,7 @@ touches.down_and_up = function(opts){
 
 
 var handle_touches_down = function(ts, original_event){
+  // console.log("down")
   var time = Date.now();
   for (var i=0, t; t=ts[i]; i++){
     var state = 
@@ -1940,9 +3490,12 @@ var handle_touches_down = function(ts, original_event){
          y_down: t.clientY};
 
     for (var j=0, fns; fns=down_and_up_fns[j]; j++){
+      // console.log(down_and_up_fns)
       if (fns.bounds_check_down && 
-          fns.bounds_check_down(t.clientX, t.clientY, original_event, state))
+          fns.bounds_check_down(t.clientX, t.clientY, original_event, state)){
+            // console.log("over", fns)
             state.fns = fns;
+          }
     }
 
   }  
@@ -1954,7 +3507,6 @@ var touchstart = function(e){
 };
 
 var mousedown = function(e){
-  // console.log('foo')
   // console.log(e.clientX, e.clientY)
   e.identifier = 'mouse'
   handle_touches_down([e], e)
@@ -1983,6 +3535,7 @@ var handle_touches_up = function(ts, original_event){
       touches.state.mouse.x_down = -1;
       touches.state.mouse.y_down = -1;
       touches.state.mouse.down_timestamp = 0;
+      delete touches.state.mouse.fns
     } else delete touches.state[t.identifier];
 
   }  
@@ -2068,16 +3621,19 @@ var loop = function(){
 
 
 
-document.addEventListener('mousedown', mousedown);
-document.addEventListener('mouseup', mouseup);
-document.addEventListener('mousemove', mousemove);
 
-document.addEventListener("touchstart", touchstart);
-document.addEventListener("touchend", touchend);
-document.addEventListener("touchmove", touchmove);
 
 
 touches.init = function(){
+
+  document.addEventListener('mousedown', mousedown);
+  document.addEventListener('mouseup', mouseup);
+  document.addEventListener('mousemove', mousemove);
+  
+  document.addEventListener("touchstart", touchstart);
+  document.addEventListener("touchend", touchend);
+  document.addEventListener("touchmove", touchmove);
+
   requestAnimationFrame(loop);
 }
 
@@ -2104,7 +3660,16 @@ window.addEVentListener('scroll', onscroll, false)
 */
 
 module.exports = touches;
-},{}],30:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
+var id = 0;
+
+var uid = function(){
+  id += 1
+  return id + ""
+}
+
+module.exports = uid;
+},{}],44:[function(require,module,exports){
 var url = {};
 
 url.init = function(){
@@ -2162,7 +3727,22 @@ url.parse.options = {
 };
 
 module.exports = url;
-},{}],31:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
+var xhr = {};
+
+xhr.get = function(url, events){
+  var xhr = new XMLHttpRequest();
+  xhr.open("get", url);
+  // if ('responseType' in events){
+  //   xhr.responseType = events.responseType
+  //   delete events.responseType
+  // }
+  for (var name in events) xhr.addEventListener(name, events[name])
+  xhr.send();
+};
+
+module.exports = xhr;
+},{}],46:[function(require,module,exports){
 var m = require('./mouse');
 var cursor = require('./cursor');
 var touches = require('./touches');
@@ -2254,7 +3834,12 @@ zoom.init = function(){
   window.addEventListener('resize', function(){
     model.resize = true;
     model.dirty = true; 
-  }); 
+  });
+
+  map.leaflet.on('zoomend', function(e){
+    // var zoom = map.leaflet.getZoom();
+    model.dirty = true;
+  });
 
   loop.add(zoom.render);
 
@@ -2262,8 +3847,12 @@ zoom.init = function(){
 
 zoom.render = function(){
 
+  // console.log(model.step, map.leaflet.getZoom())
+
   if (!model.dirty) return;
   model.dirty = false
+
+  model.step = map.leaflet.getZoom();
 
   var w = 25, h = 200
     , wpx = w + 'px', hpx = h + 'px'
@@ -2342,7 +3931,7 @@ zoom.render = function(){
 };
 
 module.exports = zoom;
-},{"./anim_loop":3,"./cursor":9,"./dom":11,"./draw":12,"./geom":16,"./map":18,"./mouse":19,"./touches":29,"./zoom_model":32}],32:[function(require,module,exports){
+},{"./anim_loop":3,"./cursor":11,"./dom":13,"./draw":14,"./geom":19,"./map":22,"./mouse":25,"./touches":42,"./zoom_model":47}],47:[function(require,module,exports){
 var map = require('./map');
 
 var model = {};
@@ -2362,5 +3951,5 @@ model.init = function(){
 };
 
 module.exports = model;
-},{"./map":18}]},{},[17])
+},{"./map":22}]},{},[20])
 ;

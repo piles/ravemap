@@ -4,12 +4,14 @@ var domq = require('./dom').q;
 var popup = require('./popup');
 var pattern = require('./pattern');
 var loop = require('./anim_loop');
+var url = require('./url');
 
 var share = {};
 
 var open = false;
 
 var dom = {};
+var fillStyle = '#000';
 
 share.init = function(){
 
@@ -21,6 +23,9 @@ share.init = function(){
   el_tail.width = 400
   el_tail.height = 50
 
+  fillStyle = (url.parsed.queryKey.bg === 'chris') ? '#fff' : '#000';
+  link.style.color = fillStyle
+
   dom.tail_ctx = dom.el_tail.getContext('2d');
 
   link.addEventListener('click', function(){
@@ -31,7 +36,7 @@ share.init = function(){
   window.addEventListener('resize', function(){ share.resize() });
 
   share.resize();
-  loop.add(share.anim);
+  loop.fns_render.push(share.anim);
 }
 
 share.anim = function(){

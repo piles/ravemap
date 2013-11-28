@@ -3,19 +3,14 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 <title>we raved here compositing test</title>
-
-<script src="http://maps.google.com/maps/api/js?sensor=false"></script>
-<!-- <script src="js/gif.js"></script> -->
-<script src="js/leaflet-src.js"></script>
-<script src="js/d3.min.js"></script>
-<script src="js/stats.js"></script>
-<script src="js-timb/we-raved-here.js"></script>
-
 <style>
 @font-face { font-family: MaisonNeue; src: url(./fonts/MaisonNeue-Mono.otf); }
 </style>
+<script src="//maps.google.com/maps/api/js?sensor=false"></script>
+<script src="//connect.soundcloud.com/sdk.js"></script>
+<script src="js/vendor.js"></script>
+<script src="js/timb-we-raved-here.js"></script>
 
-<link rel="stylesheet" href="css/leaflet.css">
 <link rel="stylesheet" href="css/we-raved-here.css">
 
 </head>
@@ -39,6 +34,15 @@
       <canvas class="timeline-slider unselectable"></canvas>
       <div class="date unselectable"></div>
     </div>
+    <div id=ui-popup class="hidden">
+      <div class=player-popup>
+        <h2>We Raved Here:</h2>
+        <h3 class=player-venue></h3>
+        <img src="img/player/close.png" class=player-close>
+        <div class=player-embed-container></div>
+      </div>
+      <canvas class="waveform hidden"></canvas>
+    </div>
     <div id=popups>
       <div class=popup-with-tail id=popup-add><div class=popup-content>
           <p>
@@ -46,12 +50,13 @@
           the best raves on soundcloud and mixcloud from the decade of dance
           </p>
           <form>
-
-            <label for=in-url>URL:</label><input id=in-url><br>
+            <label for=in-url>URL:</label><input id=in-url placeholder="link to soundcloud or mixcloud"><br>
             <label for=in-name>Name of rave:</label><input id=in-name><br>
             <label for=in-location>Location:</label><input id=in-location><br>
             <label for=in-date>Date:</label><input id=in-date><br>
             <label for=in-email>Email:</label><input id=in-email><br>
+            <input type=hidden id=in-location-lat>
+            <input type=hidden id=in-location-lng>
             <button>submit</button>
           </form>
       </div><canvas class=popup-tail></canvas></div>
@@ -73,15 +78,12 @@
         </p>
       </div><canvas class=popup-tail></canvas></div>
     </div>
+
 </div>
 
 </body>
-<!-- <script src="js-chris/mouse.js"></script> -->
-<script src="js-chris/04.js"></script>
-<!-- <script src="js-chris/randompins.js"></script> -->
-<script src="js/jquery-2.0.3.min.js"></script>
-<script src="js/soundcloud/soundcloud.player.api.js"></script>
-<script src="js/soundcloud/sc-player.js"></script>
+<script src="js/chris-04.js"></script>
+
 <script>
   we_raved_here.init();
 </script>

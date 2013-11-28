@@ -1,0 +1,17 @@
+#text-title {
+  pointer-events: none;
+}
+
+
+#ui .title {
+  visibility: hidden;
+  position: absolute;
+  right: -70px;
+  top: 50%;
+  -webkit-transform: rotate(90deg);
+  transform: rotate(90deg);
+  -webkit-transform-origin: 50% 50%;
+  transform-origin: 50% 50%;
+  pointer-events: none;
+
+}

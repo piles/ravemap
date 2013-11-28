@@ -1,0 +1,346 @@
+/*
+ soundcloud structure
+*/
+
+a.sc-player-old {
+  display: none;
+}
+
+.sc-player{
+  /*width: 100%;*/
+  height: 90px;
+  /*position: relative;*/
+  /*margin: 20px 0;*/
+  width: 400px;
+  /*margin: 0 15px;*/
+}
+
+.sc-player-old ol, .sc-player-old li{
+  margin: 0;
+  padding: 0;
+  list-style-position: inside;
+}
+
+/* Artworks */
+
+.sc-player-old .sc-artwork-list{
+  display: none;
+}
+
+.sc-player-old .sc-artwork-list li{
+  list-style-type: none;
+  display: none;
+}
+
+.sc-player-old .sc-artwork-list li.active{
+  list-style-type: none;
+  display: block;
+}
+
+.sc-player-old .sc-artwork-list li img, .sc-player-old .sc-artwork-list li div{
+  list-style-type: none;
+  width: 100%;
+  height: 100%;
+}
+
+/* controls */
+
+.sc-player-old .sc-controls{
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  padding: 4px;
+  /*top: 8px;*/
+}
+
+.sc-player-old .sc-controls a{
+  display: block;
+  width: 40px;
+  height: 40px;
+}
+
+.sc-player-old .sc-controls a.sc-play, .sc-player-old .sc-controls a.sc-pause{
+  text-indent: -3000px;
+}
+
+.sc-player-old .sc-controls a.sc-pause{
+  display: none;
+}
+
+.sc-player.playing .sc-controls a.sc-play{
+  display: none;
+}
+
+.sc-player.playing .sc-controls a.sc-pause{
+  display: block;
+}
+
+/* scrubber */
+
+.sc-scrubber {
+  position: absolute;
+  /*left: -5000px;*/
+  bottom: 20px;
+  height: 30px;
+  /*width: 95.5%;*/
+  width: 400px;
+  opacity: 0.8;
+}
+
+.sc-player:hover .sc-scrubber, .sc-player.playing .sc-scrubber {
+  display: block;
+  /*left: 45px;*/
+}
+
+
+
+.sc-scrubber .sc-time-span{
+  height: 30px;
+  margin: 0px;
+  position: relative;
+}
+
+.sc-scrubber .sc-buffer, .sc-scrubber .sc-played{
+  height: 30px;
+  position: absolute;
+  top: 0;
+  width: 0;
+  -webkit-transition: width 0.1s linear;
+}
+
+.sc-scrubber .sc-time-indicators{
+  display: none;
+  position: absolute;
+  right: 0;
+  top: -20px;
+}
+
+/* tracks */
+
+/* Track listings*/
+
+.sc-player-old ol.sc-trackslist{
+  position: absolute;
+  float: left;
+  width: 340px;
+  /*height: 100%;*/
+  left: 60px;
+  overflow: auto;
+}
+
+.sc-player-old ol.sc-trackslist li{
+  /*float: left;*/
+  /*width: 95.5%;*/
+  cursor: pointer;
+  /*margin: 5px;*/
+  /*padding: 5px;*/
+  margin: 5px 0 0 0;
+  list-style: none;
+}
+
+/* Track info*/
+
+.sc-player-old .sc-info{
+  position: absolute;
+  top: 10px;
+  left: -5000px;
+  width : 200px;
+  padding: 5px;
+  height: 450px;
+  z-index: 500;
+  margin-left: -40px;
+}
+
+.sc-player-old .sc-info.active{
+  left: 25%;
+  top: 5%;
+}
+
+
+.sc-player-old .sc-info-toggle{
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: none;
+}
+
+.sc-player-old .sc-info-toggle.active{
+  left: -5000px;
+}
+
+.sc-player-old .sc-info-close{
+  position: absolute;
+  top: 10px;
+  right: 20px;
+}
+
+/* utilities */
+
+.sc-player-old .hidden {
+  display: none;
+}
+
+.sc-player-engine-container{
+  width: 1px;
+  height: 1px;
+  position: fixed;
+  top: 2px;
+  left: 2px;
+}
+
+
+
+
+/*
+ soundcloud colors
+*/
+
+.sc-player-old {
+  background-color: #333;
+
+
+}
+
+/*
+.sc-player-old {
+  font: 12px Arial, sans-serif;
+  color: #333;
+  font-size: 1.6em;
+  line-height: 1.6em;
+  font-weight: bold;
+}
+*/
+
+.sc-player-old a {
+  font-family: MaisonNeue;
+  text-decoration: none;
+  color: #fff;
+  font-size: 16px;
+  text-align: left;
+}
+
+
+/* scrubber */
+
+.sc-scrubber {
+  background-color: #e5e5e5;
+  -moz-border-radius: 8px;
+  -webkit-border-radius: 8px;
+}
+
+.sc-scrubber .sc-time-span {
+  background-color: #fff;
+}
+
+.sc-scrubber .sc-time-span img {
+  height: 30px;
+  width: 100%;
+  background-color: #000;
+}
+
+
+.sc-scrubber .sc-buffer, .sc-scrubber .sc-played {
+  background-color: #333;
+  opacity: 0.4;
+}
+
+.sc-scrubber .sc-played {
+  background-color: #000;
+  opacity: 0.4;
+}
+
+/* controls */
+
+.sc-player-old .sc-controls a {
+  opacity: 0.5;
+  color: transparent;
+  /*background: url('soundcloud-img/play.png');*/
+  background: url('soundcloud-img/play-hover.png');
+
+}
+
+.sc-player-old .sc-controls a:hover {
+  background: url('soundcloud-img/play.png');
+
+  /*background: url('soundcloud-img/play-hover.png');*/
+}
+
+.sc-player-old .sc-controls a.sc-pause {
+  background: url('soundcloud-img/play.png');
+}
+
+.sc-player-old .sc-controls a.sc-pause:hover{
+  background: url('soundcloud-img/play-hover.png');
+}
+
+.sc-player.playing .sc-controls a.sc-pause{
+  background: url('soundcloud-img/pause-hover.png');
+
+}
+
+.sc-player.playing .sc-controls a.sc-pause:hover{
+  background: url('soundcloud-img/pause.png');
+
+}  
+
+.sc-scrubber .sc-time-indicators{
+  background: #fff;
+  color: #000;
+  -moz-border-radius: 4px;
+  -webkit-border-radius: 4px;
+  padding: 2px;
+  font-size: 0.4em;
+  font-weight: normal;
+  line-height: 1em;
+}
+
+/* Track listings*/
+
+.sc-player-old ol.sc-trackslist li.active, .sc-player-old ol.sc-trackslist li:hover {
+  /*background-color: #fff;*/
+  padding: 4px;
+  color: #000;
+}
+
+.sc-player-old ol.sc-trackslist li.active a {
+  /*color: #000;*/
+}
+
+.sc-track-duration {
+  text-align: right;
+  float: right;
+  padding: 0 5px;
+  margin-left: 5px;
+  display: none;
+}
+
+/* Track info*/
+
+.sc-player-old .sc-info{
+  background: #fff;
+  /*opacity: 0.9;*/
+}
+
+.sc-player-old .sc-info-toggle{
+  background: #fff;
+  color: #003399;
+  -moz-border-radius: 4px;
+  -webkit-border-radius: 4px;
+  -moz-box-shadow: 1px 1px 4px #ccc;
+  -webkit-box-shadow: 1px 1px 4px #ccc;
+  padding: 4px;
+}
+
+.sc-player-old .sc-info-toggle:hover{
+  background: #003399;
+  color: #eee;
+}
+
+.sc-player-old .sc-info-close{
+  background: #003399;
+  color: #fff;
+  -moz-border-radius: 4px;
+  -webkit-border-radius: 4px;
+  padding: 2px 4px;
+  font-weight: bold;
+}

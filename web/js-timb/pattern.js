@@ -1,4 +1,4 @@
-
+// the pattern inside popup tails
 
 var patterns = [];
 

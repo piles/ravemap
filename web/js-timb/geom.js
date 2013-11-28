@@ -1,6 +1,6 @@
-var geom = {};
+// basic geometry functions
 
-geom.init
+var geom = {};
 
 geom.bounds_hit_test = function(b, x, y){
   if (typeof b === 'undefined') return false;
@@ -13,18 +13,18 @@ geom.bounds_hit_test = function(b, x, y){
 };
 
 
-local_xy_to_canvas_xy = function(model, x, y){
-  
-}
+// local_xy_to_canvas_xy = function(model, x, y){
+  // 
+// }
 
-local_xy_to_window_xy = function(model, x, y){
-  x = model.l + x;
-  y = model.t + y;
-  return {x:x, y:y};
-}
+// local_xy_to_window_xy = function(model, x, y){
+  // x = model.l + x;
+  // y = model.t + y;
+  // return {x:x, y:y};
+// }
 
-window_xy_to_local_xy = function(model, x, y){
-  
-}
+// window_xy_to_local_xy = function(model, x, y){
+  // 
+// }
 
 module.exports = geom;

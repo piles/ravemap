@@ -1,33 +1,50 @@
+var empty = require('./fn').empty
 var text2el = require('./dom').text2el;
 
-var soundcloud = {};
-
-soundcloud.render = function(){
-  
-}
-
-soundcloud.leaflet_layer = L.Class.extend({
+// soundcloud.leaflet_layer = L.Class.extend({
+L.PlayerPopup = L.Class.extend({
 
     options: {},
 
-    initialize: function (latlng, content, options) {
+    initialize: function (opts) {
         // save position of the layer or any options from the constructor
-        this._latlng = latlng;
-        this._content = content;
+
+        this._latlng = opts.latlng;
+        this._html = opts.html;
+        this._fn_add = opts.fn_add || empty;
+        this._fn_rm = opts.fn_rm || empty;
+        this._url = opts.url;
+        this._fn_close_popup = opts.fn_close_popup || empty;
+
+        // console.log(opts)
+
+        // console.log(this.options);
+        // this._fn_
         // this._offset = options.offset
         // L.setOptions(this, options);
     },
 
     onAdd: function (map) {
+
+        var layer = this;
+
         this._map = map;
 
         // create a DOM element and put it into one of the map panes
         // this._el = L.DomUtil.create('div', 'my-custom-layer leaflet-zoom-hide');
-        this._el = text2el(this._content);
+        this._el = text2el(this._html);
+
+
 
         // map.getPanes().overlayPane.appendChild(this._el);
         map.getPanes().popupPane.appendChild(this._el);
-        $('a.sc-player, div.sc-player').scPlayer();
+
+
+        var close_button = this._el.querySelector(".player-close");
+        close_button.addEventListener("click", this._fn_close_popup)
+
+        this._fn_add(this);
+        // $('a.sc-player, div.sc-player').scPlayer();
 
         // console.log(this._el.offsetWidth, this._el.offsetHeight)
 
@@ -41,7 +58,8 @@ soundcloud.leaflet_layer = L.Class.extend({
 
     onRemove: function (map) {
         // remove layer's DOM elements and listeners
-        $('.sc-player.playing a.sc-pause').click();
+        this._fn_rm(this);
+        
         map.getPanes().popupPane.removeChild(this._el);
         // $.scPlayer.stopAll();
         map.off('viewreset', this._reset, this);
@@ -56,9 +74,3 @@ soundcloud.leaflet_layer = L.Class.extend({
         L.DomUtil.setPosition(this._el, pos);
     }
 });
-
-
-module.exports = soundcloud;
-
-
-// <iframe width="100%" height="166" scrolling="no" frameborder="no" src="https://w.soundcloud.com/player/?url=http%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F113559292"></iframe>

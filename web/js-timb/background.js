@@ -9,12 +9,11 @@ var dom = {};
 background.init = function(){
   dom.el = domq("#background");
 
-  var q = url.parse(location.href).queryKey
+  var q = url.parsed.queryKey
 
   if (q.bg === 'anim') background.fn = background.as_anim
-  if (q.bg === 'checkers') background.fn = background.as_gif
-  if (q.bg === 'chris') background.fn = background.as_chris
-
+  // if (q.bg === 'checkers') background.fn = background.as_gif
+  else if (q.bg === 'chris') background.fn = background.as_chris
   else background.fn = background.as_gif
 
   background.fn();
@@ -28,7 +27,7 @@ background.as_chris = function(){
   dom.el.appendChild(window.canvas_bg)
   // dom.ctx = c.getContext('2d');
 
-  loop.add(window.loop_chris_bg);
+  loop.fns_render.push(window.loop_chris_bg);
 }
 
 background.as_anim = function(){
@@ -38,7 +37,7 @@ background.as_anim = function(){
   dom.el.appendChild(c)
   dom.ctx = c.getContext('2d');
 
-  loop.add(background.anim_render);
+  loop.fns_render.push(background.anim_render);
 }
 
 background.anim_render = function(){

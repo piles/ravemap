@@ -1,7 +1,11 @@
+// hacky font polling to check for loading
+// the reason for doing this is that firefox will draw text into a canvas 
+// using the wrong font before the right one is loaded
+// based on https://github.com/patrickmarabeas/jQuery-FontFace-onLoad
+
 var extend = require('./extend');
 var css = require('./css');
 
-// based on https://github.com/patrickmarabeas/jQuery-FontFace-onLoad
 
 var font_load = function(config_in){
 
@@ -39,18 +43,14 @@ var font_load = function(config_in){
 
       if(config.timeout < 0) {
           config.fail_fn();
-        // $this.removeClass(config.onLoad);
-        // $this.addClass(config.onFail);
       }
       else {
-        // $this.addClass(config.onLoad);              
         setTimeout(check_loop, config.delay);
         config.timeout = config.timeout - config.delay;
       }
 
     }
     else {
-      // $this.removeClass(config.onLoad);
       config.load_fn();
     }
   };

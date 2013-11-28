@@ -1,0 +1,21 @@
+#ui-timeline {
+  position: absolute;
+  /*top: 0;*/
+  /*left: 50%;*/
+  /*border: 1px solid red;*/
+}
+
+#ui-timeline canvas {
+  pointer-events: auto;
+}
+
+#ui-timeline .date {
+  font-size: 16px;
+  font-family: MaisonNeue;
+  text-decoration: underline;
+  letter-spacing: 5px;
+  display: inline-block;
+  position: absolute;
+  pointer-events: none;
+  /*text-shadow: 1px 1px 2px #fff, -1px -1px 2px #fff, 1px -1px 2px #fff, -1px 1px 2px #fff;*/
+}

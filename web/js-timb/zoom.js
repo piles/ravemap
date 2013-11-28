@@ -1,9 +1,12 @@
+// the zoom ui
+
 var m = require('./mouse');
 var cursor = require('./cursor');
 var touches = require('./touches');
 
 var geom = require('./geom');
 var domq = require('./dom').q;
+var url = require('./url');
 
 var map = require('./map');
 var loop = require('./anim_loop');
@@ -14,6 +17,8 @@ var model = require('./zoom_model');
 var zoom = {};
 
 var dom = {};
+
+var fillStyle = '#000';
 
 var button_zoomin_action = function(x, y, e, state){
   var step = model.step + 1;
@@ -82,6 +87,9 @@ zoom.init = function(){
 
   model.init();
 
+  fillStyle = (url.parsed.queryKey.bg === 'chris') ? '#fff' : '#000';
+  dom.ctx.fillStyle = fillStyle
+
   touches.down_and_up(touches_button_zoomin);
   touches.down_and_up(touches_button_zoomout);
   touches.down_and_up(touches_scale);
@@ -89,16 +97,25 @@ zoom.init = function(){
   window.addEventListener('resize', function(){
     model.resize = true;
     model.dirty = true; 
-  }); 
+  });
 
-  loop.add(zoom.render);
+  map.leaflet.on('zoomend', function(e){
+    // var zoom = map.leaflet.getZoom();
+    model.dirty = true;
+  });
+
+  loop.fns_render.push(zoom.render);
 
 };
 
 zoom.render = function(){
 
+  // console.log(model.step, map.leaflet.getZoom())
+
   if (!model.dirty) return;
   model.dirty = false
+
+  model.step = map.leaflet.getZoom();
 
   var w = 25, h = 200
     , wpx = w + 'px', hpx = h + 'px'
@@ -109,6 +126,7 @@ zoom.render = function(){
     , pad = (w * 0.3)|0
     , mid = (w/2)|0
 
+  // only recalc bounds and position if necessary
   if (model.resize){
     model.resize = false;
 
@@ -135,6 +153,7 @@ zoom.render = function(){
 
     dom.canvas.width = w;
     dom.canvas.height = h;
+    dom.ctx.fillStyle = fillStyle
     
     var style = dom.el.style;
 
@@ -155,6 +174,7 @@ zoom.render = function(){
 
   dom.ctx.clearRect(0,0, w,h);
 
+  // "unit" height where each unit is one chunk of a slider
   var uh = scale_h / (model.range.length - 1);
   var uh_2 = uh / 2;
 

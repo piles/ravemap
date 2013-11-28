@@ -1,0 +1,16 @@
+html, body, div, canvas, ul, li, p, svg { border: 0; padding: 0; margin: 0; }
+body { zoverflow: hidden; }
+
+html { height: 100%; zoverflow: hidden; }
+body { 
+  height: 100%;
+}
+
+
+*, *:before, *:after {
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}

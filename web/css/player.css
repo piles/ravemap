@@ -1,0 +1,35 @@
+.player-popup {
+  width: 430px;
+  background-color: #000;
+  opacity: 0.9;
+  /*position: absolute;*/
+  padding: 20px 15px;
+}
+
+.player-popup h2, .player-popup h3, .player-popup p {
+  font-family: MaisonNeue;
+  color: #fff;
+}
+
+.player-popup h3, .player-popup p {
+  color: #bbb;
+  text-align: left;
+  padding: 0 0 6px 0px;
+  font-size: 12px;
+}
+
+.player-popup h2 {
+  text-align: center;
+  font-size: 24px;
+  letter-spacing: 8px;
+}
+
+.player-popup .player-close {
+/*  width: 14px;
+  height: 14px;
+  background-image: url("/img/player/close.png");*/
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  cursor: pointer;
+}

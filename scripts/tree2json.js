@@ -1,3 +1,6 @@
+// this calculates the tile data structure from map tiles for use in data.js
+// timb: todo, make this work on the command line better
+
 var fs = require('fs'),
   , path = require('path')
   , util = require('util')
@@ -16,8 +19,6 @@ function dirTree(filename) {
             return dirTree(filename + '/' + child);
         });
     } else {
-        // Assuming it's a file. In real life it could be a symlink or
-        // something else!
         info.type = "file";
     }
 

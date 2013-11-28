@@ -1,0 +1,46 @@
+#ui-zoom {
+  position: absolute;
+  pointer-events: auto;
+  
+  /*top: 0;*/
+  /*left: 10px;*/
+  /*pointer-events: none;  */
+  /*border: 1px solid red;*/
+}
+
+#ui-zoom canvas, #ui-timeline canvas, #ui #text-title {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /*pointer-events: none;  */
+}
+
+#ui-zoom .zoom-out {
+  border: 1px solid red;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: auto;  
+  cursor: pointer;
+}
+
+#ui-zoom .zoom-in {
+  border: 1px solid red;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: auto;  
+  cursor: pointer;
+}
+
+#ui-zoom .zoom-knob {
+  border: 1px solid red;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: auto;  
+  cursor: pointer;
+}

@@ -1,0 +1,24 @@
+just a list of global names attached to window by this code... the more minimal this list is, the better
+
+js-chris/04.js
+  canvas, ctx, etc
+
+js-timb/we-raved-here.js
+  we_raved_here
+  jsonp
+  all the stuff in index.js (temporary)
+
+js/vendor.js
+  d3
+  $, jQuery
+  L, bunch of _leaflet* stuff (leaflet)
+  soundcloud (temp)
+  Stats
+
+other directly included js libs
+  SC (soundcloud)  
+  google
+  twittr, bunch of _twitter stuff
+
+
+

@@ -1,0 +1,71 @@
+.soundcloud-player {
+  /*border: 1px solid red;*/
+  position: relative;
+  width: 400px;
+  opacity: 1;
+}
+
+.soundcloud-player-inner {
+  height: 70px;
+  /*background-color: #222;*/
+}
+
+.soundcloud-play-pause {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60px;
+  height: 60px;
+  /*background-color: #222;*/
+  cursor: pointer;
+  background-position: 9px 9px;
+  background-repeat: no-repeat;
+}
+
+.soundcloud-play-pause.playing {
+  background-image: url("../img/player/soundcloud-pause.png");
+}
+
+.soundcloud-play-pause.paused {
+  background-image: url("../img/player/soundcloud-play.png");
+}
+
+.soundcloud-track-title {
+  position: absolute;
+  top: 15px;
+  right: 0;
+  width: 340px;
+  /*background-color: #222;  */
+}
+
+
+#ui-popup .waveform {
+  position: absolute;
+  top: 150px;
+  left: 15px;
+}
+
+#soundcloud-flash-player{
+  top: -10px;
+  left: -10px;
+  position: absolute;
+  width: 1px;
+  height: 1px;  
+}
+
+/*.soundcloud-waveform {
+  position: absolute;
+  left: 0;
+  right: 0;
+}*/
+
+/*
+
+.sc-player-engine-container{
+  width: 1px;
+  height: 1px;
+  position: fixed;
+  top: 2px;
+  left: 2px;
+}
+*/

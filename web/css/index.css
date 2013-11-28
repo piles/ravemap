@@ -1,0 +1,24 @@
+/*@font-face {
+  font-family: MaisonNeue;
+  src: url(../fonts/MaisonNeue-Mono.otf);
+}*/
+
+.hidden {
+  display: none;
+}
+
+
+.unselectable {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+html body.cursor-default {
+  /*cursor: default !important;*/
+}
+
+html body.cursor-pointer, html body.cursor-pointer .soundcloud-waveform {
+  cursor: pointer !important;
+}

@@ -3,8 +3,10 @@ var popup = {};
 popup.list = {};
 
 popup.close = function(){
-  for (key in popup.list)
+  for (var key in popup.list)
     popup.list[key].close();
 };
+
+popup.width = 400;
 
 module.exports = popup;

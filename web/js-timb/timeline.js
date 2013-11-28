@@ -1,3 +1,5 @@
+// the timeline ui
+
 var m = require('./mouse');
 var data = require('./data');
 var cursor = require('./cursor');
@@ -5,6 +7,8 @@ var geom = require('./geom');
 var domq = require('./dom').q;
 var loop = require('./anim_loop');
 var map = require('./map');
+var pin = require('./pin');
+var url = require('./url');
 
 var draw = require('./draw');
 
@@ -21,6 +25,7 @@ var model = require('./timeline_model');
 var dom = {};
 
 var timeline = {};
+var fillStyle = '#000';
 
 // buttons
 var button_prev_action = function(x, y, e, state){
@@ -132,12 +137,16 @@ timeline.init = function(){
   touches.down_and_up(touches_button_next);
   touches.down_and_up(touches_scale);
 
+  fillStyle = (url.parsed.queryKey.bg === 'chris') ? '#fff' : '#000';
+  dom.ctx.fillStyle = fillStyle
+  dom.el_date.style.color = fillStyle
+
   window.addEventListener('resize', function(){
     model.resize = true;
     model.dirty = true; 
   }); 
 
-  loop.add(timeline.render);
+  loop.fns_render.push(timeline.render);
 };
 
 
@@ -156,6 +165,7 @@ timeline.render = function(){
       wpx = w +'px',                hpx = h +'px',
       l = (w_units - button_w) |0,  lpx = l +'px', // centered horizontally
       t = 10,                       tpx = t +'px'
+      pad_date = 4
 
   if (model.resize){
     model.resize = false;
@@ -191,6 +201,7 @@ timeline.render = function(){
 
     dom.canvas.width = w;
     dom.canvas.height = h;
+    dom.ctx.fillStyle = fillStyle
 
     var style = dom.el.style;
     style.width = wpx;
@@ -198,9 +209,9 @@ timeline.render = function(){
     style.top = tpx;
     style.left = lpx;
 
-    var date_height = t + h + 0
+    var date_height = h + pad_date + 0
     dom.el_date.style.top = date_height +'px';
-    timeline.date_left = l
+    // timeline.date_left = l
 
   }
 
@@ -272,10 +283,10 @@ timeline.render = function(){
       if (!(year in events)) continue;
       var marker_matches_year = date_year === parseInt(year);
       var opacity = marker_matches_year ? 1.0 : 0.7;
-      var icon = marker_matches_year ? map.icon_pink : map.icon_blue;
+      //var icon = marker_matches_year ? pin.icon_pink : pin.icon_html;
 
       for (var i=0, item; item=events[year][i]; i++){
-        item.marker.setIcon(icon)
+      //  item.pin.setIcon(icon)
         // item.marker.setOpacity(opacity);
         // if (marker_matches_year) item.marker.openPopup();
         // else item.marker.closePopup();

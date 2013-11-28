@@ -6393,7 +6393,7 @@ L.DomEvent = {
 	},
 
 	stopPropagation: function (e) {
-
+		// console.log("stopped!", e) // timb edit
 		if (e.stopPropagation) {
 			e.stopPropagation();
 		} else {
@@ -6417,7 +6417,6 @@ L.DomEvent = {
 	},
 
 	preventDefault: function (e) {
-
 		if (e.preventDefault) {
 			e.preventDefault();
 		} else {

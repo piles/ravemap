@@ -17,6 +17,9 @@ var data = [
   {year: '1996',
    data: {"events":{"1996":[{"id":"4","eventname":"","url":"https:\/\/soundcloud.com\/slipmatt-1\/slipmatt-live-moondance","venue":"Moondance","latitude":"51.542141","longitude":"-0.1277349","eventdate":"1996-01-01","location":"Bagleys Kings Cross London","eventdate_known":"0"},{"id":"15","eventname":"","url":"https:\/\/soundcloud.com\/metalheadz\/kemistry-storm-goldie","venue":"Metalheadz","latitude":"50.82253","longitude":"-0.137163","eventdate":"1996-01-01","location":"Brighton","eventdate_known":"0"}]},"meta":{"years":["1991","1992","1993","1994","1995","1996"]}}
   }
+  ,
+  {year: '1997',
+  data: {events: {"1997": [{"id":"test","eventname":"","url":"http://www.mixcloud.com/Slipmatt/slipmatt-world-of-rave-28/","venue":"blah","latitude":"43.653226","longitude":"-79.38318429999998","eventdate":"1997-01-01","location":"bluh"}]}}}
 ];
 
 module.exports = data;

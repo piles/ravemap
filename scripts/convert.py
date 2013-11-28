@@ -1,3 +1,5 @@
+# convert mbtiles file to actual pngs
+
 import os
 import sys
 import sqlite3

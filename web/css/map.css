@@ -1,0 +1,11 @@
+#map { height: 100%; width: 100%; }
+
+#map.leaflet-container {
+  background: transparent;
+  outline: 0;
+}
+
+#zmap.leaflet-container img.leaflet-tile {
+  opacity: 0.5;
+  visibility: hidden;  
+}

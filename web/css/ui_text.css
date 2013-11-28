@@ -1,0 +1,139 @@
+#ui-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  list-style-type: none;
+  pointer-events: none;
+}
+
+#ui-bottom li {
+
+  padding: 0 10px 5px 10px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+#ui .text {
+  font-size: 16px;
+  font-family: MaisonNeue;
+  text-decoration: underline;
+  letter-spacing: 5px;
+  font-weight: normal;  
+}
+
+.popup-with-tail {
+  color: #fff;
+  display: none;
+  position: absolute;
+  width: 400px;
+  height: 320px;
+  min-height: 320px;
+}
+
+.popup-tail {
+  position: absolute;
+  bottom: 0px;
+  overflow-y: auto;
+  height: 50px  
+}
+
+.popup-content {
+  position: absolute;
+  bottom: 50px;
+  overflow-y: auto;
+  zzheight: 230px;
+  max-height: 280px;  
+}
+
+
+
+.popup-content p, .popup-content form {
+  width: 400px;
+  vertical-align: bottom;
+  background-color: rgba(32,32,32, 0.85);
+  font-size: 14px;
+  font-family: MaisonNeue;
+}
+
+.popup-content p {
+  padding: 10px;
+}
+
+
+.popup-content p a, .popup-content p a:active, .popup-content p a:visited {
+  color: #fff;
+}
+
+#popup-about {
+  right: 31px;
+  bottom: 30px;
+  pointer-events: auto;
+}
+
+#popup-add {
+  left: 45px;
+  bottom: 30px;
+  pointer-events: auto;
+
+}
+
+#popup-add label {
+  cursor: pointer;
+  padding: 10px;
+}
+
+#popup-add input {
+  cursor: pointer;
+}
+
+#popup-add input {
+  /*position: absolute;*/
+  /*right: 0;*/
+  margin: 5px 0px;
+  padding: 3px;
+
+  background-color: transparent;
+  color: rgba(255,255,255, 0.7);
+  font-size: 14px;
+  font-family: MaisonNeue;  
+
+  border: none;
+}
+
+#popup-add input:focus {
+  /*border: 2px solid rgba(255,255,255, 0.8);*/
+  color: #fff;
+  background-color: rgba(32,32,32, 1.0);
+}
+
+#popup-add button {
+  color: #000;
+  padding: 2px;
+  font-size: 16px;
+  margin: 10px;
+  font-family: MaisonNeue;    
+}
+
+
+#popup-share {
+/*  margin-left: auto;
+  margin-right: auto;*/
+  bottom: 30px;
+  pointer-events: auto;
+  
+}
+
+/* timb: failed svg attempt at clipping
+ .popup-tail {
+  width: 400px;
+  height: 50px;
+  background-image: url(../img/bg.checkerboard.gif);
+  background-size: 16px 16px;
+  clip-path: url(#popup1);
+  z-webkit-clip-path: polygon(0px 0px, 400px 0px, 380px 50px);
+  -webkit-clip-path: url(#popup1);
+
+}*/

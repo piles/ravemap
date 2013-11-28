@@ -82,6 +82,7 @@
         }
 
         return state;
+        // return false;
     }(),
     callbacks = {
       onReady: function() {
